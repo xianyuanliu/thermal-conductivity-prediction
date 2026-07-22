@@ -103,10 +103,16 @@ def main():
     print(f"Test  MAE : {metrics['test_mae']:.6g}")
 
     if not args.no_save:
+        # Keep one row per model: rerunning a model overwrites its previous result.
         row = pd.DataFrame([metrics])
-        header = not os.path.exists(RESULTS_PATH)
-        row.to_csv(RESULTS_PATH, mode="a", header=header, index=False)
-        print(f"Metrics appended to {RESULTS_PATH}")
+        if os.path.exists(RESULTS_PATH):
+            results = pd.read_csv(RESULTS_PATH)
+            results = results[results["model"] != args.model]
+            results = pd.concat([results, row], ignore_index=True)
+        else:
+            results = row
+        results.to_csv(RESULTS_PATH, index=False)
+        print(f"Metrics saved to {RESULTS_PATH}")
 
 
 if __name__ == "__main__":
