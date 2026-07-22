@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import make_pipeline
@@ -26,9 +26,9 @@ def build_model(name: str):
     if name == "linear":
         return LinearRegression()
     if name == "ridge":
-        return make_pipeline(StandardScaler(), Ridge(alpha=1.0, random_state=RANDOM_STATE))
+        return make_pipeline(StandardScaler(), Ridge(alpha=1.0))
     if name == "lasso":
-        return make_pipeline(StandardScaler(), Lasso(alpha=1e-6, random_state=RANDOM_STATE))
+        return make_pipeline(StandardScaler(), Lasso(alpha=1e-6))
     if name == "svr":
         # Target is ~1e-3 in magnitude, so scale y as well (scale-sensitive model).
         return TransformedTargetRegressor(
@@ -92,7 +92,7 @@ def main():
         "model": args.model,
         "train_r2": r2_score(y_train, y_pred_train),
         "test_r2": r2_score(y_test, y_pred_test),
-        "test_rmse": mean_squared_error(y_test, y_pred_test) ** 0.5,
+        "test_rmse": root_mean_squared_error(y_test, y_pred_test),
         "test_mae": mean_absolute_error(y_test, y_pred_test),
     }
 
