@@ -1,3 +1,5 @@
+import argparse
+
 import pandas as pd
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -15,7 +17,6 @@ FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
-MODEL = "linear"
 
 
 def build_model(name: str):
@@ -58,6 +59,15 @@ def build_model(name: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
+    parser.add_argument(
+        "--model",
+        default="linear",
+        choices=["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp"],
+        help="Which model to train (default: linear)",
+    )
+    args = parser.parse_args()
+
     df = pd.read_csv(DATA_PATH)
     X = df[FEATURES]
     y = df[TARGET]
@@ -67,10 +77,10 @@ def main():
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
 
-    model = build_model(MODEL)
+    model = build_model(args.model)
     model.fit(X_train, y_train)
 
-    print(f"Model: {MODEL}")
+    print(f"Model: {args.model}")
     print(f"Train R^2: {r2_score(y_train, model.predict(X_train)):.6f}")
     print(f"Test  R^2: {r2_score(y_test, model.predict(X_test)):.6f}")
 
