@@ -30,7 +30,12 @@ def build_model(name: str):
     if name == "lasso":
         return make_pipeline(StandardScaler(), Lasso(alpha=1e-6))
     if name == "svr":
-        # Target is ~1e-3 in magnitude, so scale y as well (scale-sensitive model).
+        # Standardising both X and y is standard practice for SVR (Hsu, Chang &
+        # Lin, "A Practical Guide to Support Vector Classification"): epsilon and
+        # C are defined on the scale of y, and with y ~1e-3 the default tube
+        # would swallow the whole target range. The scaler is fitted on training
+        # data only and predictions are inverse-transformed, so there is no
+        # leakage and metrics stay in original units.
         return TransformedTargetRegressor(
             regressor=make_pipeline(StandardScaler(), SVR(kernel="rbf", C=10.0, epsilon=0.01)),
             transformer=StandardScaler(),
@@ -46,6 +51,9 @@ def build_model(name: str):
             n_jobs=-1,
         )
     if name == "mlp":
+        # Scaling X and y is standard practice for neural networks (LeCun et
+        # al., "Efficient BackProp"): weight initialisation and the default
+        # learning rate assume O(1) outputs, so a ~1e-3 target trains poorly.
         return TransformedTargetRegressor(
             regressor=make_pipeline(
                 StandardScaler(),
