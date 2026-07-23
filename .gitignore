@@ -41,3 +41,5 @@ outputs/
 .DS_Store
 Thumbs.db
 results.csv
+results_cv.csv
+results_cv_folds.csv
