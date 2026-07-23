@@ -27,8 +27,15 @@ htmlcov/
 # Model artifacts and generated figures
 *.pkl
 *.joblib
+models/
 figures/
 outputs/
+
+# Generated results
+results.csv
+results_cv.csv
+results_cv_folds.csv
+predictions.csv
 
 # Logs
 *.log
@@ -40,9 +47,3 @@ outputs/
 # OS
 .DS_Store
 Thumbs.db
-results.csv
-results_cv.csv
-results_cv_folds.csv
-figures/
-models/
-predictions.csv
