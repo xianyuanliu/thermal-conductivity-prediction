@@ -1,11 +1,17 @@
 import argparse
 import os
 
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+    root_mean_squared_error,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import make_pipeline
@@ -68,6 +74,31 @@ def build_model(name: str):
     raise ValueError(f"Unknown model: {name}")
 
 
+def compute_metrics(y_true, y_pred) -> dict:
+    """Regression metrics in original units; relative errors as fractions."""
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    return {
+        "r2": r2_score(y_true, y_pred),
+        "rmse": root_mean_squared_error(y_true, y_pred),
+        "mae": mean_absolute_error(y_true, y_pred),
+        "mape": mean_absolute_percentage_error(y_true, y_pred),
+        "max_rel_err": np.max(np.abs(y_pred - y_true) / np.abs(y_true)),
+    }
+
+
+def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
+    """Upsert: drop existing rows matching the new key, then append the new rows."""
+    if os.path.exists(path):
+        results = pd.read_csv(path)
+        key = [new_rows.iloc[0][col] for col in key_cols]
+        mask = (results[key_cols] == key).all(axis=1)
+        results = pd.concat([results[~mask], new_rows], ignore_index=True)
+    else:
+        results = new_rows
+    results.to_csv(path, index=False)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
     parser.add_argument(
@@ -93,15 +124,12 @@ def main():
     model = build_model(args.model)
     model.fit(X_train, y_train)
 
-    y_pred_train = model.predict(X_train)
-    y_pred_test = model.predict(X_test)
-
+    train_metrics = compute_metrics(y_train, model.predict(X_train))
+    test_metrics = compute_metrics(y_test, model.predict(X_test))
     metrics = {
         "model": args.model,
-        "train_r2": r2_score(y_train, y_pred_train),
-        "test_r2": r2_score(y_test, y_pred_test),
-        "test_rmse": root_mean_squared_error(y_test, y_pred_test),
-        "test_mae": mean_absolute_error(y_test, y_pred_test),
+        "train_r2": train_metrics["r2"],
+        **{f"test_{name}": value for name, value in test_metrics.items()},
     }
 
     print(f"Model: {metrics['model']}")
@@ -109,17 +137,12 @@ def main():
     print(f"Test  R^2 : {metrics['test_r2']:.6f}")
     print(f"Test  RMSE: {metrics['test_rmse']:.6g}")
     print(f"Test  MAE : {metrics['test_mae']:.6g}")
+    print(f"Test  MAPE: {metrics['test_mape']:.4%}")
+    print(f"Test  max rel err: {metrics['test_max_rel_err']:.4%}")
 
     if not args.no_save:
         # Keep one row per model: rerunning a model overwrites its previous result.
-        row = pd.DataFrame([metrics])
-        if os.path.exists(RESULTS_PATH):
-            results = pd.read_csv(RESULTS_PATH)
-            results = results[results["model"] != args.model]
-            results = pd.concat([results, row], ignore_index=True)
-        else:
-            results = row
-        results.to_csv(RESULTS_PATH, index=False)
+        save_results(RESULTS_PATH, pd.DataFrame([metrics]), ["model"])
         print(f"Metrics saved to {RESULTS_PATH}")
 
 
