@@ -1,15 +1,8 @@
-"""SHAP analysis of the SVR surrogate model.
+"""SHAP analysis of the SVR model: how (K1, K2, V2) drive predicted Keff.
 
-Explains how (K1, K2, V2) drive the predicted effective thermal conductivity.
-The SVR pipeline scales features internally, so SHAP values are computed in
-the original physical units. With three features, Kernel SHAP enumerates all
-2^3 coalitions, giving exact Shapley values rather than a sampled
-approximation.
-
-Usage:
-  python shap_analysis.py
-
-Writes the feature importance ranking to stdout and the plots to figures/.
+With three features, Kernel SHAP enumerates all 2^3 coalitions, so the
+Shapley values are exact. Prints the importance ranking and writes summary
+and dependence plots to figures/.
 """
 
 import os

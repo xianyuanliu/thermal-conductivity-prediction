@@ -60,12 +60,9 @@ def build_model(name: str):
     if name == "lasso":
         return make_pipeline(StandardScaler(), Lasso(alpha=1e-6))
     if name == "svr":
-        # Standardising both X and y is standard practice for SVR (Hsu, Chang &
-        # Lin, "A Practical Guide to Support Vector Classification"): epsilon
-        # and C are defined on the scale of y, and with y ~1e-3 the default
-        # tube would swallow the whole target range. The scaler is fitted on
-        # training data only and predictions are inverse-transformed, so there
-        # is no leakage and metrics stay in original units.
+        # Standard practice (Hsu, Chang & Lin, "A Practical Guide to Support
+        # Vector Classification"): epsilon and C live on the scale of y, and
+        # with y ~1e-3 the default tube would swallow the whole target range.
         return TransformedTargetRegressor(
             regressor=make_pipeline(
                 StandardScaler(), SVR(kernel="rbf", C=10.0, epsilon=0.01)
@@ -85,9 +82,8 @@ def build_model(name: str):
             n_jobs=-1,
         )
     if name == "mlp":
-        # Scaling X and y is standard practice for neural networks (LeCun et
-        # al., "Efficient BackProp"): weight initialisation and the default
-        # learning rate assume O(1) outputs, so a ~1e-3 target trains poorly.
+        # Standard practice (LeCun et al., "Efficient BackProp"): weight
+        # initialisation and learning rate assume O(1) outputs.
         return TransformedTargetRegressor(
             regressor=make_pipeline(
                 StandardScaler(),
@@ -156,8 +152,7 @@ def iter_folds(X: pd.DataFrame, cv: str):
 
 
 def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool) -> None:
-    """Trains on a fixed 80/20 split and reports train/test metrics."""
-    # Fixed seed + split: every model sees the exact same train/test data.
+    """Trains on the fixed 80/20 split shared by every model and reports metrics."""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
