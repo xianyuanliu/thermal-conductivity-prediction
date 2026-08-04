@@ -17,7 +17,8 @@ import os
 import joblib
 import pandas as pd
 
-from main import DATA_PATH, FEATURES, MODEL_NAMES, TARGET, build_model
+from config import DATA_PATH, FEATURES, MODEL_NAMES, TARGET
+from main import build_model
 
 MODELS_DIR = "models"
 PREDICTION_COLUMN = "Keff-Pred"

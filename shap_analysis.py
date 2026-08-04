@@ -16,7 +16,8 @@ import pandas as pd
 import shap
 from sklearn.model_selection import train_test_split
 
-from main import DATA_PATH, FEATURES, RANDOM_STATE, TARGET, TEST_SIZE, build_model
+from config import DATA_PATH, FEATURES, RANDOM_STATE, TARGET, TEST_SIZE
+from main import build_model
 
 FIGURES_DIR = "figures"
 N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
