@@ -50,7 +50,7 @@ def load_or_train(name: str, retrain: bool):
     return model, feature_ranges
 
 
-def warn_if_out_of_range(X: pd.DataFrame, feature_ranges: dict) -> None:
+def warn_if_out_of_range(X: pd.DataFrame, feature_ranges: dict):
     """Warns when inputs fall outside the training range (extrapolation)."""
     for feature, (low, high) in feature_ranges.items():
         outside = (X[feature] < low) | (X[feature] > high)
@@ -62,7 +62,7 @@ def warn_if_out_of_range(X: pd.DataFrame, feature_ranges: dict) -> None:
             )
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(description="Predict effective thermal conductivity")
     parser.add_argument(
         "--model",

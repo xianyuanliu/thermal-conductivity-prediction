@@ -98,7 +98,7 @@ def build_model(name: str):
     raise ValueError(f"Unknown model: {name}")
 
 
-def compute_metrics(y_true, y_pred) -> dict:
+def compute_metrics(y_true, y_pred):
     """Returns regression metrics keyed by METRIC_NAMES.
 
     Values are in original units; relative errors are fractions, not percent.
@@ -114,7 +114,7 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
-def save_results(path: str, new_rows: pd.DataFrame, key_cols: list) -> None:
+def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     """Upserts rows into a CSV: drops rows matching the new key, then appends.
 
     Args:
@@ -151,7 +151,7 @@ def iter_folds(X: pd.DataFrame, cv: str):
             yield fold, value, np.flatnonzero(~test_mask), np.flatnonzero(test_mask)
 
 
-def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool) -> None:
+def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool):
     """Trains on the fixed 80/20 split shared by every model and reports metrics."""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
@@ -180,7 +180,7 @@ def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool)
         print(f"Metrics saved to {RESULTS_PATH}")
 
 
-def run_cv(model_name: str, cv: str, X: pd.DataFrame, y: pd.Series, save: bool) -> None:
+def run_cv(model_name: str, cv: str, X: pd.DataFrame, y: pd.Series, save: bool):
     """Runs 10-fold CV and reports per-fold metrics plus their mean and std."""
     rows = []
     for fold, v2_value, train_idx, test_idx in iter_folds(X, cv):
@@ -210,7 +210,7 @@ def run_cv(model_name: str, cv: str, X: pd.DataFrame, y: pd.Series, save: bool) 
         print(f"Fold metrics saved to {CV_FOLDS_PATH}, summary to {CV_RESULTS_PATH}")
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
     parser.add_argument(
         "--model",
