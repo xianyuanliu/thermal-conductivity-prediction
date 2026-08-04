@@ -32,9 +32,7 @@ figures/
 outputs/
 
 # Generated results
-results.csv
-results_cv.csv
-results_cv_folds.csv
+results*.csv
 predictions.csv
 
 # Logs
