@@ -15,7 +15,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-Evaluate a model (metrics: R2, RMSE, MAE, MAPE, max relative error):
+Evaluate one model (metrics: R2, RMSE, MAE, MAPE, max relative error):
 
 ```bash
 python main.py --model svr              # single fixed 80/20 split
@@ -23,11 +23,23 @@ python main.py --model svr --cv random  # shuffled 10-fold CV (interpolation)
 python main.py --model svr --cv v2      # leave-one-V2-out CV (extrapolation)
 ```
 
-Models: `linear`, `ridge`, `lasso`, `svr`, `rf`, `xgb`, `mlp`. Results are
-upserted into `results.csv` (single split) and `results_cv.csv` plus
-`results_cv_folds.csv` (CV), one row per configuration; pass `--no-save` to
-skip writing them. These files, along with `models/` and `figures/`, are
-generated and git-ignored.
+Models: `linear`, `ridge`, `lasso`, `svr`, `rf`, `xgb`, `mlp`. Pass
+`--results PATH` to save metrics (upserted, one row per configuration); omit it
+to run without saving. For CV the per-fold metrics are written next to the
+summary with a `_folds` suffix (`results.csv` -> `results_folds.csv`).
+
+Run several models in one evaluation mode from a YAML config, with per-model
+hyperparameter overrides:
+
+```bash
+python main.py --config configs/baseline.yaml
+```
+
+The config sets the evaluation mode, an optional results file, and the models
+with their hyperparameters; see [configs/baseline.yaml](configs/baseline.yaml).
+Defaults for everything (paths, constants, per-model hyperparameters) live in
+[config.py](config.py); a config file only lists what it overrides. Generated
+`results*.csv`, `models/`, and `figures/` are git-ignored.
 
 Predict Keff for new inputs (trains on the full dataset, cached in `models/`):
 
