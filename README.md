@@ -7,6 +7,8 @@ numerical simulation (`Data-Keff-Num.csv`, a full 21 x 21 x 10 grid).
 
 ## Setup
 
+Requires Python 3.11+.
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -23,7 +25,9 @@ python main.py --model svr --cv v2      # leave-one-V2-out CV (extrapolation)
 
 Models: `linear`, `ridge`, `lasso`, `svr`, `rf`, `xgb`, `mlp`. Results are
 upserted into `results.csv` (single split) and `results_cv.csv` plus
-`results_cv_folds.csv` (CV), one row per configuration.
+`results_cv_folds.csv` (CV), one row per configuration; pass `--no-save` to
+skip writing them. These files, along with `models/` and `figures/`, are
+generated and git-ignored.
 
 Predict Keff for new inputs (trains on the full dataset, cached in `models/`):
 
