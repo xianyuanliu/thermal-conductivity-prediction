@@ -54,17 +54,25 @@ from config import (
 )
 
 
-def build_model(name: str, params: dict | None = None):
-    """Returns a fresh estimator by name, with optional hyperparameter overrides.
+def resolve_params(name: str, params: dict | None = None) -> dict:
+    """Returns the hyperparameters a model will actually be built with.
 
-    Hyperparameters come from config.DEFAULT_PARAMS[name], with params merged on
-    top (overrides win), e.g. {"C": 100} for svr or {"n_estimators": 500} for rf.
-    Scale-sensitive models get a StandardScaler on the features and, where the
-    target's ~1e-3 scale matters (svr, mlp), on the target too.
+    config.DEFAULT_PARAMS[name] with params merged on top (overrides win), e.g.
+    {"C": 100} for svr or {"n_estimators": 500} for rf. This is also what the
+    results files record, so a row stays identifiable after the defaults change.
     """
     if name not in DEFAULT_PARAMS:
         raise ValueError(f"Unknown model: {name}")
-    p = {**DEFAULT_PARAMS[name], **(params or {})}
+    return {**DEFAULT_PARAMS[name], **(params or {})}
+
+
+def build_model(name: str, params: dict | None = None):
+    """Returns a fresh estimator by name, with optional hyperparameter overrides.
+
+    Scale-sensitive models get a StandardScaler on the features and, where the
+    target's ~1e-3 scale matters (svr, mlp), on the target too.
+    """
+    p = resolve_params(name, params)
     if name == "linear":
         return LinearRegression(**p)
     if name == "ridge":
@@ -114,6 +122,9 @@ def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     """
     if os.path.exists(path):
         results = pd.read_csv(path)
+        for col in key_cols:  # A file written before this column existed.
+            if col not in results.columns:
+                results[col] = pd.NA
         key = [new_rows.iloc[0][col] for col in key_cols]
         keep = ~(results[key_cols] == key).all(axis=1)
         results = pd.concat([results[keep], new_rows], ignore_index=True)
@@ -168,6 +179,7 @@ def run_single_split(
     test_metrics = compute_metrics(y_test, model.predict(X_test))
     metrics = {
         "model": model_name,
+        "params": str(resolve_params(model_name, params)),
         "train_r2": r2_score(y_train, model.predict(X_train)),
         **{f"test_{name}": value for name, value in test_metrics.items()},
     }
@@ -181,7 +193,7 @@ def run_single_split(
     print(f"Test  max rel err: {metrics['test_max_rel_err']:.4%}")
 
     if results_path:
-        save_results(results_path, pd.DataFrame([metrics]), ["model"])
+        save_results(results_path, pd.DataFrame([metrics]), ["model", "params"])
         print(f"Metrics saved to {results_path}")
 
 
@@ -198,13 +210,14 @@ def run_cv(
     Saves the summary to results_path and per-fold metrics to its _folds
     variant when results_path is given.
     """
+    params_repr = str(resolve_params(model_name, params))
     rows = []
     for fold, v2_value, train_idx, test_idx in iter_folds(X, cv):
         model = build_model(model_name, params)  # Fresh model per fold.
         model.fit(X.iloc[train_idx], y.iloc[train_idx])
         fold_metrics = compute_metrics(y.iloc[test_idx], model.predict(X.iloc[test_idx]))
         rows.append(
-            {"model": model_name, "cv": cv, "fold": fold, "v2_value": v2_value}
+            {"model": model_name, "params": params_repr, "cv": cv, "fold": fold, "v2_value": v2_value}
             | fold_metrics
         )
     folds = pd.DataFrame(rows)
@@ -213,7 +226,7 @@ def run_cv(
     shown = (["fold", "v2_value"] if cv == "v2" else ["fold"]) + METRIC_NAMES
     print(folds[shown].to_string(index=False, float_format=lambda v: f"{v:.6g}"))
 
-    summary = {"model": model_name, "cv": cv}
+    summary = {"model": model_name, "params": params_repr, "cv": cv}
     print("Summary (mean +/- std):")
     for name in METRIC_NAMES:
         summary[f"{name}_mean"] = folds[name].mean()
@@ -222,8 +235,8 @@ def run_cv(
 
     if results_path:
         folds_file = folds_path(results_path)
-        save_results(folds_file, folds, ["model", "cv"])
-        save_results(results_path, pd.DataFrame([summary]), ["model", "cv"])
+        save_results(folds_file, folds, ["model", "params", "cv"])
+        save_results(results_path, pd.DataFrame([summary]), ["model", "params", "cv"])
         print(f"Fold metrics saved to {folds_file}, summary to {results_path}")
 
 

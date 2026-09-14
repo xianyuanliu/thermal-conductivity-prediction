@@ -24,9 +24,9 @@ python main.py --model svr --cv v2      # leave-one-V2-out CV (extrapolation)
 ```
 
 Models: `linear`, `ridge`, `lasso`, `svr`, `rf`, `xgb`, `mlp`. Pass
-`--results PATH` to save metrics (upserted, one row per configuration); omit it
-to run without saving. For CV the per-fold metrics are written next to the
-summary with a `_folds` suffix (`results.csv` -> `results_folds.csv`).
+`--results PATH` to save metrics (upserted, one row per model and hyperparameter
+set); omit it to run without saving. For CV the per-fold metrics are written
+next to the summary with a `_folds` suffix (`results.csv` -> `results_folds.csv`).
 
 Run several models in one evaluation mode from a YAML config, with per-model
 hyperparameter overrides:
