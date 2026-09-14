@@ -39,9 +39,20 @@ The config sets the evaluation mode, an optional results file, and the models
 with their hyperparameters; see [configs/baseline.yaml](configs/baseline.yaml).
 Defaults for everything (paths, constants, per-model hyperparameters) live in
 [config.py](config.py); a config file only lists what it overrides. Generated
-`results*.csv`, `models/`, and `figures/` are git-ignored.
+`results*.csv`, `tuning.csv`, `models/`, and `figures/` are git-ignored.
 
-Predict Keff for new inputs (trains on the full dataset, cached in `models/`):
+Search hyperparameters for `svr`, `mlp` and `rf` under leave-one-V2-out; the
+full ranking goes to `tuning.csv`:
+
+```bash
+python tune.py
+python tune.py --models svr --metric max_rel_err
+```
+
+Winners go into `DEFAULT_PARAMS` in [config.py](config.py) by hand.
+
+Predict Keff for new inputs (trains on the full dataset, cached in `models/`;
+`--retrain` after changing hyperparameters or data):
 
 ```bash
 python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3

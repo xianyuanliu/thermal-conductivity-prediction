@@ -33,7 +33,9 @@ outputs/
 
 # Generated results
 results*.csv
+tuning.csv
 predictions.csv
+blind_predictions.csv
 
 # Logs
 *.log
