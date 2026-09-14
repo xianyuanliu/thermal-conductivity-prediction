@@ -67,6 +67,7 @@ python shap_analysis.py
 
 ## Results
 
-SVR performs best in every evaluation (single split test R2 = 0.99996,
-leave-one-V2-out mean R2 = 0.9989). Tree ensembles degrade on the
-extrapolation folds; SHAP attributes ~72% of the prediction to `K1`.
+SVR performs best in every evaluation (single split test R2 = 0.999999,
+leave-one-V2-out mean R2 = 0.9994; MLP 0.9981, RF 0.9904). Tree ensembles
+degrade on the extrapolation folds; SHAP attributes ~72% of the prediction
+to `K1`.
