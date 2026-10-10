@@ -25,7 +25,7 @@ python predict.py --input blind_validation.csv --output predictions.csv   # pred
 python shap_analysis.py                           # SHAP plots in figures/
 ```
 
-Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`). See [config.py](config.py) for details.
+Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`), and the tabular foundation models TabPFN (`tabpfn`), TabFM (`tabfm`) and TabICL (`tabicl`). See [config.py](config.py) for details.
 
 ## Citation
 

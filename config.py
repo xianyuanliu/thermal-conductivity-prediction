@@ -10,7 +10,7 @@ DATA_PATH = "Data-Keff-Num.csv"
 FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
 
-MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp"]
+MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp", "tabpfn", "tabfm", "tabicl"]
 METRIC_NAMES = ["r2", "rmse", "mae", "mape", "max_rel_err"]
 EVALUATIONS = ["single", "random", "v2"]
 
@@ -29,6 +29,9 @@ N_FOLDS = 10
 #   mlp: weight init and learning rate assume O(1) outputs (LeCun et al.,
 #        "Efficient BackProp"), so the target is standardized here too.
 #   mlp, rf: also tune.py winners; neither beats svr.
+#   tabpfn, tabfm, tabicl: pretrained tabular foundation models that predict by
+#        in-context learning on the training set, so there is nothing to tune;
+#        they normalize features and target internally.
 DEFAULT_PARAMS = {
     "linear": {},
     "ridge": {"alpha": 1.0},
@@ -54,4 +57,7 @@ DEFAULT_PARAMS = {
         "max_iter": 2000,
         "random_state": RANDOM_STATE,
     },
+    "tabpfn": {},
+    "tabfm": {},
+    "tabicl": {"random_state": RANDOM_STATE},
 }

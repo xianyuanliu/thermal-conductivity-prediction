@@ -19,6 +19,7 @@ summary with a _folds suffix (results.csv -> results_folds.csv).
 """
 
 import argparse
+import importlib
 import os
 
 import numpy as np
@@ -39,22 +40,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
-from tabpfn import TabPFNRegressor
-from tabfm import TabFMRegressor
-from tabfm import tabfm_v1_0_0_pytorch as tabfm_v1_0_0
 
-
-DATA_PATH = "Data-Keff-Num.csv"
-RESULTS_PATH = "results.csv"
-CV_RESULTS_PATH = "results_cv.csv"
-CV_FOLDS_PATH = "results_cv_folds.csv"
-FEATURES = ["K1", "K2", "V2"]
-TARGET = "Keff-Num"
-MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp", "tabpfn", "tabfm"]
-METRIC_NAMES = ["r2", "rmse", "mae", "mape", "max_rel_err"]
-RANDOM_STATE = 42
-TEST_SIZE = 0.2
-N_FOLDS = 10
 from config import (
     DATA_PATH,
     DEFAULT_PARAMS,
@@ -80,7 +66,20 @@ def resolve_params(name: str, params: dict | None = None) -> dict:
         raise ValueError(f"Unknown model: {name}")
     return {**DEFAULT_PARAMS[name], **(params or {})}
 
-os.environ["TABPFN_TOKEN"] = "REMOVED_TABPFN_TOKEN"
+
+def require(package: str, model: str):
+    """Imports an optional foundation-model backend, or explains how to install it.
+
+    tabpfn, tabfm and tabicl pull in PyTorch, so they are imported only when
+    their model is built; the other models never need them.
+    """
+    try:
+        return importlib.import_module(package)
+    except ImportError as e:
+        raise ImportError(
+            f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements.txt"
+        ) from e
+
 
 def build_model(name: str, params: dict | None = None):
     """Returns a fresh estimator by name, with optional hyperparameter overrides.
@@ -110,10 +109,13 @@ def build_model(name: str, params: dict | None = None):
             transformer=StandardScaler(),
         )
     if name == "tabpfn":
-        return TabPFNRegressor()
+        return require("tabpfn", name).TabPFNRegressor(**p)
     if name == "tabfm":
-        model = tabfm_v1_0_0.load(model_type="regression")
-        return TabFMRegressor(model=model)
+        tabfm = require("tabfm.src.pytorch.tabfm_v1_0_0", name)
+        model = tabfm.load(model_type="regression")
+        return require("tabfm", name).TabFMRegressor(model=model, **p)
+    if name == "tabicl":
+        return require("tabicl", name).TabICLRegressor(**p)
     raise ValueError(f"Unknown model: {name}")
 
 

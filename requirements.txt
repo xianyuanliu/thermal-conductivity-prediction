@@ -6,3 +6,7 @@ xgboost>=2.0
 matplotlib>=3.7
 shap>=0.45
 pyyaml>=6.0
+# Tabular foundation models (pull in PyTorch; only needed for tabpfn/tabfm/tabicl)
+tabpfn>=2.0
+tabicl>=2.0
+tabfm[pytorch] @ git+https://github.com/google-research/tabfm.git
