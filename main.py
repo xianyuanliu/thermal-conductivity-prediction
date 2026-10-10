@@ -33,6 +33,10 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
+from tabpfn import TabPFNRegressor
+from tabfm import TabFMRegressor
+from tabfm import tabfm_v1_0_0_pytorch as tabfm_v1_0_0
+
 
 DATA_PATH = "Data-Keff-Num.csv"
 RESULTS_PATH = "results.csv"
@@ -40,12 +44,13 @@ CV_RESULTS_PATH = "results_cv.csv"
 CV_FOLDS_PATH = "results_cv_folds.csv"
 FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
-MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp"]
+MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp", "tabpfn", "tabfm"]
 METRIC_NAMES = ["r2", "rmse", "mae", "mape", "max_rel_err"]
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
 N_FOLDS = 10
 
+os.environ["TABPFN_TOKEN"] = "REMOVED_TABPFN_TOKEN"
 
 def build_model(name: str):
     """Returns a fresh estimator by name.
@@ -95,6 +100,11 @@ def build_model(name: str):
             ),
             transformer=StandardScaler(),
         )
+    if name == "tabpfn":
+        return TabPFNRegressor()
+    if name == "tabfm":
+        model = tabfm_v1_0_0.load(model_type="regression")
+        return TabFMRegressor(model=model)
     raise ValueError(f"Unknown model: {name}")
 
 
