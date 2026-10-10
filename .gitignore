@@ -32,10 +32,10 @@ figures/
 outputs/
 
 # Generated results
-results.csv
-results_cv.csv
-results_cv_folds.csv
+results*.csv
+tuning.csv
 predictions.csv
+blind_predictions.csv
 
 # Logs
 *.log

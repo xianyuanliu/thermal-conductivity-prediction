@@ -1,16 +1,21 @@
 """Effective thermal conductivity prediction from two-phase composite data.
 
-Trains one regression model per run on (K1, K2, V2) -> Keff and reports
-R^2, RMSE, MAE, MAPE and max relative error. Three independent experiments
-are selected via --cv:
+Trains regression models on (K1, K2, V2) -> Keff and reports R^2, RMSE, MAE,
+MAPE and max relative error. Run one model from the command line:
 
   python main.py --model svr              # single fixed 80/20 split
   python main.py --model svr --cv random  # shuffled 10-fold CV
   python main.py --model svr --cv v2      # leave-one-V2-out 10-fold CV
 
-Each experiment writes to its own results file, so runs never interfere:
-results.csv (single split), results_cv.csv and results_cv_folds.csv (CV).
-Rerunning a configuration overwrites its previous rows.
+or run several at once from a YAML config (see configs/baseline.yaml):
+
+  python main.py --config configs/baseline.yaml
+
+Defaults (paths, constants, per-model hyperparameters) live in config.py; a
+config file only needs to list what it overrides. Pass --results PATH (or set
+`results:` in the config) to save metrics, upserted one row per configuration;
+omit it to run without saving. For CV, per-fold metrics are written next to the
+summary with a _folds suffix (results.csv -> results_folds.csv).
 """
 
 import argparse
@@ -18,6 +23,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import yaml
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
@@ -49,55 +55,58 @@ METRIC_NAMES = ["r2", "rmse", "mae", "mape", "max_rel_err"]
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
 N_FOLDS = 10
+from config import (
+    DATA_PATH,
+    DEFAULT_PARAMS,
+    EVALUATIONS,
+    FEATURES,
+    METRIC_NAMES,
+    MODEL_NAMES,
+    N_FOLDS,
+    RANDOM_STATE,
+    TARGET,
+    TEST_SIZE,
+)
+
+
+def resolve_params(name: str, params: dict | None = None) -> dict:
+    """Returns the hyperparameters a model will actually be built with.
+
+    config.DEFAULT_PARAMS[name] with params merged on top (overrides win), e.g.
+    {"C": 100} for svr or {"n_estimators": 500} for rf. This is also what the
+    results files record, so a row stays identifiable after the defaults change.
+    """
+    if name not in DEFAULT_PARAMS:
+        raise ValueError(f"Unknown model: {name}")
+    return {**DEFAULT_PARAMS[name], **(params or {})}
 
 os.environ["TABPFN_TOKEN"] = "REMOVED_TABPFN_TOKEN"
 
-def build_model(name: str):
-    """Returns a fresh estimator by name.
+def build_model(name: str, params: dict | None = None):
+    """Returns a fresh estimator by name, with optional hyperparameter overrides.
 
-    Scale-sensitive models get a StandardScaler on the features and, where
-    needed, on the target.
+    Scale-sensitive models get a StandardScaler on the features and, where the
+    target's ~1e-3 scale matters (svr, mlp), on the target too.
     """
+    p = resolve_params(name, params)
     if name == "linear":
-        return LinearRegression()
+        return LinearRegression(**p)
     if name == "ridge":
-        return make_pipeline(StandardScaler(), Ridge(alpha=1.0))
+        return make_pipeline(StandardScaler(), Ridge(**p))
     if name == "lasso":
-        return make_pipeline(StandardScaler(), Lasso(alpha=1e-6))
+        return make_pipeline(StandardScaler(), Lasso(**p))
     if name == "svr":
-        # Standard practice (Hsu, Chang & Lin, "A Practical Guide to Support
-        # Vector Classification"): epsilon and C live on the scale of y, and
-        # with y ~1e-3 the default tube would swallow the whole target range.
         return TransformedTargetRegressor(
-            regressor=make_pipeline(
-                StandardScaler(), SVR(kernel="rbf", C=10.0, epsilon=0.01)
-            ),
+            regressor=make_pipeline(StandardScaler(), SVR(**p)),
             transformer=StandardScaler(),
         )
     if name == "rf":
-        return RandomForestRegressor(
-            n_estimators=300, random_state=RANDOM_STATE, n_jobs=-1
-        )
+        return RandomForestRegressor(**p)
     if name == "xgb":
-        return XGBRegressor(
-            n_estimators=500,
-            learning_rate=0.05,
-            max_depth=6,
-            random_state=RANDOM_STATE,
-            n_jobs=-1,
-        )
+        return XGBRegressor(**p)
     if name == "mlp":
-        # Standard practice (LeCun et al., "Efficient BackProp"): weight
-        # initialisation and learning rate assume O(1) outputs.
         return TransformedTargetRegressor(
-            regressor=make_pipeline(
-                StandardScaler(),
-                MLPRegressor(
-                    hidden_layer_sizes=(64, 64),
-                    max_iter=2000,
-                    random_state=RANDOM_STATE,
-                ),
-            ),
+            regressor=make_pipeline(StandardScaler(), MLPRegressor(**p)),
             transformer=StandardScaler(),
         )
     if name == "tabpfn":
@@ -108,7 +117,7 @@ def build_model(name: str):
     raise ValueError(f"Unknown model: {name}")
 
 
-def compute_metrics(y_true, y_pred) -> dict:
+def compute_metrics(y_true, y_pred):
     """Returns regression metrics keyed by METRIC_NAMES.
 
     Values are in original units; relative errors are fractions, not percent.
@@ -124,7 +133,7 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
-def save_results(path: str, new_rows: pd.DataFrame, key_cols: list) -> None:
+def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     """Upserts rows into a CSV: drops rows matching the new key, then appends.
 
     Args:
@@ -134,12 +143,21 @@ def save_results(path: str, new_rows: pd.DataFrame, key_cols: list) -> None:
     """
     if os.path.exists(path):
         results = pd.read_csv(path)
+        for col in key_cols:  # A file written before this column existed.
+            if col not in results.columns:
+                results[col] = pd.NA
         key = [new_rows.iloc[0][col] for col in key_cols]
         keep = ~(results[key_cols] == key).all(axis=1)
         results = pd.concat([results[keep], new_rows], ignore_index=True)
     else:
         results = new_rows
     results.to_csv(path, index=False)
+
+
+def folds_path(results_path: str):
+    """Derives the per-fold CSV path from the summary path: foo.csv -> foo_folds.csv."""
+    root, ext = os.path.splitext(results_path)
+    return f"{root}_folds{ext}"
 
 
 def iter_folds(X: pd.DataFrame, cv: str):
@@ -161,18 +179,28 @@ def iter_folds(X: pd.DataFrame, cv: str):
             yield fold, value, np.flatnonzero(~test_mask), np.flatnonzero(test_mask)
 
 
-def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool) -> None:
-    """Trains on the fixed 80/20 split shared by every model and reports metrics."""
+def run_single_split(
+    model_name: str,
+    X: pd.DataFrame,
+    y: pd.Series,
+    results_path: str | None = None,
+    params: dict | None = None,
+):
+    """Trains on the fixed 80/20 split shared by every model and reports metrics.
+
+    Saves to results_path when given (one row per model, upserted).
+    """
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
 
-    model = build_model(model_name)
+    model = build_model(model_name, params)
     model.fit(X_train, y_train)
 
     test_metrics = compute_metrics(y_test, model.predict(X_test))
     metrics = {
         "model": model_name,
+        "params": str(resolve_params(model_name, params)),
         "train_r2": r2_score(y_train, model.predict(X_train)),
         **{f"test_{name}": value for name, value in test_metrics.items()},
     }
@@ -185,20 +213,32 @@ def run_single_split(model_name: str, X: pd.DataFrame, y: pd.Series, save: bool)
     print(f"Test  MAPE: {metrics['test_mape']:.4%}")
     print(f"Test  max rel err: {metrics['test_max_rel_err']:.4%}")
 
-    if save:
-        save_results(RESULTS_PATH, pd.DataFrame([metrics]), ["model"])
-        print(f"Metrics saved to {RESULTS_PATH}")
+    if results_path:
+        save_results(results_path, pd.DataFrame([metrics]), ["model", "params"])
+        print(f"Metrics saved to {results_path}")
 
 
-def run_cv(model_name: str, cv: str, X: pd.DataFrame, y: pd.Series, save: bool) -> None:
-    """Runs 10-fold CV and reports per-fold metrics plus their mean and std."""
+def run_cv(
+    model_name: str,
+    cv: str,
+    X: pd.DataFrame,
+    y: pd.Series,
+    results_path: str | None = None,
+    params: dict | None = None,
+):
+    """Runs 10-fold CV and reports per-fold metrics plus their mean and std.
+
+    Saves the summary to results_path and per-fold metrics to its _folds
+    variant when results_path is given.
+    """
+    params_repr = str(resolve_params(model_name, params))
     rows = []
     for fold, v2_value, train_idx, test_idx in iter_folds(X, cv):
-        model = build_model(model_name)  # Fresh model per fold.
+        model = build_model(model_name, params)  # Fresh model per fold.
         model.fit(X.iloc[train_idx], y.iloc[train_idx])
         fold_metrics = compute_metrics(y.iloc[test_idx], model.predict(X.iloc[test_idx]))
         rows.append(
-            {"model": model_name, "cv": cv, "fold": fold, "v2_value": v2_value}
+            {"model": model_name, "params": params_repr, "cv": cv, "fold": fold, "v2_value": v2_value}
             | fold_metrics
         )
     folds = pd.DataFrame(rows)
@@ -207,21 +247,56 @@ def run_cv(model_name: str, cv: str, X: pd.DataFrame, y: pd.Series, save: bool) 
     shown = (["fold", "v2_value"] if cv == "v2" else ["fold"]) + METRIC_NAMES
     print(folds[shown].to_string(index=False, float_format=lambda v: f"{v:.6g}"))
 
-    summary = {"model": model_name, "cv": cv}
+    summary = {"model": model_name, "params": params_repr, "cv": cv}
     print("Summary (mean +/- std):")
     for name in METRIC_NAMES:
         summary[f"{name}_mean"] = folds[name].mean()
         summary[f"{name}_std"] = folds[name].std()
         print(f"  {name:12s}: {summary[f'{name}_mean']:.6g} +/- {summary[f'{name}_std']:.6g}")
 
-    if save:
-        save_results(CV_FOLDS_PATH, folds, ["model", "cv"])
-        save_results(CV_RESULTS_PATH, pd.DataFrame([summary]), ["model", "cv"])
-        print(f"Fold metrics saved to {CV_FOLDS_PATH}, summary to {CV_RESULTS_PATH}")
+    if results_path:
+        folds_file = folds_path(results_path)
+        save_results(folds_file, folds, ["model", "params", "cv"])
+        save_results(results_path, pd.DataFrame([summary]), ["model", "params", "cv"])
+        print(f"Fold metrics saved to {folds_file}, summary to {results_path}")
 
 
-def main() -> None:
+def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
+    """Runs every model listed in a YAML config under one evaluation mode.
+
+    The config keys are: 'evaluation' (single/random/v2, default single),
+    'results' (optional CSV path), and 'models' (a map of model name to a dict
+    of hyperparameter overrides; {} keeps the defaults).
+    """
+    with open(config_path) as f:
+        config = yaml.safe_load(f) or {}
+
+    evaluation = config.get("evaluation", "single")
+    if evaluation not in EVALUATIONS:
+        raise ValueError(f"evaluation must be one of {EVALUATIONS}, got {evaluation!r}")
+
+    results_path = config.get("results")
+    models = config.get("models") or {}
+    unknown = [name for name in models if name not in MODEL_NAMES]
+    if unknown:
+        raise ValueError(f"unknown model(s) in config: {', '.join(unknown)}")
+    if not models:
+        raise ValueError("config lists no models to run")
+
+    for name, params in models.items():
+        if evaluation == "single":
+            run_single_split(name, X, y, results_path=results_path, params=params)
+        else:
+            run_cv(name, evaluation, X, y, results_path=results_path, params=params)
+        print()
+
+
+def main():
     parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
+    parser.add_argument(
+        "--config",
+        help="YAML config to run several models at once; overrides --model/--cv/--results",
+    )
     parser.add_argument(
         "--model",
         default="linear",
@@ -235,7 +310,8 @@ def main() -> None:
         "'random' is shuffled, 'v2' is leave-one-V2-out",
     )
     parser.add_argument(
-        "--no-save", action="store_true", help="Do not save metrics to the results files"
+        "--results",
+        help="CSV path to save metrics to; if omitted, results are not saved",
     )
     args = parser.parse_args()
 
@@ -243,10 +319,12 @@ def main() -> None:
     X = df[FEATURES]
     y = df[TARGET]
 
-    if args.cv:
-        run_cv(args.model, args.cv, X, y, save=not args.no_save)
+    if args.config:
+        run_config(args.config, X, y)
+    elif args.cv:
+        run_cv(args.model, args.cv, X, y, results_path=args.results)
     else:
-        run_single_split(args.model, X, y, save=not args.no_save)
+        run_single_split(args.model, X, y, results_path=args.results)
 
 
 if __name__ == "__main__":

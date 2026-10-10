@@ -1,11 +1,15 @@
-# thermal-conductivity-prediction
+# Thermal Conductivity Prediction
 
-Machine learning surrogate models for the effective thermal conductivity of a
-two-phase composite. Input features are the phase conductivities `K1`, `K2`
-and the phase-2 volume fraction `V2`; the target `Keff-Num` comes from
-numerical simulation (`Data-Keff-Num.csv`, a full 21 x 21 x 10 grid).
+Machine learning surrogate models predicting the effective thermal conductivity `Keff` of a two-phase composite from the conductivities of the two phases (`K1`, `K2`) and the volume fraction of phase 2 (`V2`).
 
-## Setup
+## Data
+
+- `Data-Keff-Num.csv`: numerical simulation data (`K1`, `K2`, `V2`, `Keff-Num`) on a full 21 x 21 x 10 grid (4410 samples).
+- `blind_validation.csv`: held-out data (`K1`, `K2`, `V2`) for blind prediction.
+
+## Installation
+
+Requires Python 3.11+.
 
 ```bash
 pip install -r requirements.txt
@@ -13,33 +17,20 @@ pip install -r requirements.txt
 
 ## Usage
 
-Evaluate a model (metrics: R2, RMSE, MAE, MAPE, max relative error):
-
 ```bash
-python main.py --model svr              # single fixed 80/20 split
-python main.py --model svr --cv random  # shuffled 10-fold CV (interpolation)
-python main.py --model svr --cv v2      # leave-one-V2-out CV (extrapolation)
+python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
+python main.py --config configs/baseline.yaml     # evaluate several models from a config
+python tune.py                                    # hyperparameter search
+python predict.py --input blind_validation.csv --output predictions.csv   # predict Keff
+python shap_analysis.py                           # SHAP plots in figures/
 ```
 
-Models: `linear`, `ridge`, `lasso`, `svr`, `rf`, `xgb`, `mlp`. Results are
-upserted into `results.csv` (single split) and `results_cv.csv` plus
-`results_cv_folds.csv` (CV), one row per configuration.
+Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`). See [config.py](config.py) for details.
 
-Predict Keff for new inputs (trains on the full dataset, cached in `models/`):
+## Citation
 
-```bash
-python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3
-python predict.py --input new_points.csv --output predictions.csv
-```
+Citation details will be added upon publication.
 
-Explain the SVR model with SHAP (plots written to `figures/`):
+## License
 
-```bash
-python shap_analysis.py
-```
-
-## Results
-
-SVR performs best in every evaluation (single split test R2 = 0.99996,
-leave-one-V2-out mean R2 = 0.9989). Tree ensembles degrade on the
-extrapolation folds; SHAP attributes ~72% of the prediction to `K1`.
+[MIT](LICENSE)

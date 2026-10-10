@@ -16,13 +16,14 @@ import pandas as pd
 import shap
 from sklearn.model_selection import train_test_split
 
-from main import DATA_PATH, FEATURES, RANDOM_STATE, TARGET, TEST_SIZE, build_model
+from config import DATA_PATH, FEATURES, RANDOM_STATE, TARGET, TEST_SIZE
+from main import build_model
 
 FIGURES_DIR = "figures"
 N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
 
 
-def main() -> None:
+def main():
     df = pd.read_csv(DATA_PATH)
     X = df[FEATURES]
     y = df[TARGET]
@@ -35,7 +36,7 @@ def main() -> None:
     model = build_model("svr")
     model.fit(X_train, y_train)
 
-    def predict(data: np.ndarray) -> np.ndarray:
+    def predict(data: np.ndarray):
         # SHAP passes bare arrays; restore column names to match the fitted pipeline.
         return model.predict(pd.DataFrame(data, columns=FEATURES))
 
