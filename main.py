@@ -111,9 +111,9 @@ def build_model(name: str, params: dict | None = None):
     if name == "tabpfn":
         return require("tabpfn", name).TabPFNRegressor(**p)
     if name == "tabfm":
-        tabfm = require("tabfm.src.pytorch.tabfm_v1_0_0", name)
-        model = tabfm.load(model_type="regression")
-        return require("tabfm", name).TabFMRegressor(model=model, **p)
+        tabfm = require("tabfm", name)
+        model = tabfm.tabfm_v1_0_0_pytorch.load(model_type="regression")
+        return tabfm.TabFMRegressor(model=model, **p)
     if name == "tabicl":
         return require("tabicl", name).TabICLRegressor(**p)
     raise ValueError(f"Unknown model: {name}")
