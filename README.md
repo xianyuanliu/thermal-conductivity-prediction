@@ -27,6 +27,8 @@ python shap_analysis.py                           # SHAP plots in figures/
 
 Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`), and the tabular foundation models TabPFN (`tabpfn`), TabFM (`tabfm`) and TabICL (`tabicl`). See [config.py](config.py) for details.
 
+> **License note:** TabFM automatically downloads pretrained weights that upstream licenses only for non-commercial, non-production use; see [TabFM's pretrained-weights license notice](https://github.com/google-research/tabfm#license-notice-for-pretrained-weights).
+
 ## Citation
 
 Citation details will be added upon publication.
