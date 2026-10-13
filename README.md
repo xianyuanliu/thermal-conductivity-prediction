@@ -15,6 +15,12 @@ Requires Python 3.11+.
 pip install -r requirements.txt
 ```
 
+The tabular foundation models (`tabpfn`, `tabfm`, `tabicl`) are optional and pull in PyTorch. To use them, install instead:
+
+```bash
+pip install -r requirements-fm.txt
+```
+
 ## Usage
 
 ```bash
@@ -27,7 +33,10 @@ python shap_analysis.py                           # SHAP plots in figures/
 
 Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`), and the tabular foundation models TabPFN (`tabpfn`), TabFM (`tabfm`) and TabICL (`tabicl`). See [config.py](config.py) for details.
 
-> **License note:** TabFM automatically downloads pretrained weights that upstream licenses only for non-commercial, non-production use; see [TabFM's pretrained-weights license notice](https://github.com/google-research/tabfm#license-notice-for-pretrained-weights).
+> **License notes:** The foundation models download pretrained weights whose licenses are more restrictive than this repository's.
+>
+> - **TabPFN:** the weights are licensed for non-commercial use only, and downloading them requires accepting the license with a Prior Labs account. On first use, TabPFN opens a browser to log in and caches the token. Without a browser (servers, CI), accept the license at [ux.priorlabs.ai](https://ux.priorlabs.ai), copy an API key, and set the `TABPFN_TOKEN` environment variable. See [Prior Labs' gated-model guide](https://docs.priorlabs.ai/how-to-access-gated-models).
+> - **TabFM:** the weights are licensed only for non-commercial, non-production use; see [TabFM's pretrained-weights license notice](https://github.com/google-research/tabfm#license-notice-for-pretrained-weights).
 
 ## Citation
 

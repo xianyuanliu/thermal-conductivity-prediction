@@ -77,7 +77,7 @@ def require(package: str, model: str):
         return importlib.import_module(package)
     except ImportError as e:
         raise ImportError(
-            f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements.txt"
+            f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements-fm.txt"
         ) from e
 
 
