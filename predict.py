@@ -17,7 +17,7 @@ import os
 import joblib
 import pandas as pd
 
-from config import DATA_PATH, FEATURES, MODEL_NAMES, TARGET
+from config import DATA_PATH, FEATURES, PREDICT_MODEL_NAMES, TARGET
 from main import build_model
 
 MODELS_DIR = "models"
@@ -68,7 +68,7 @@ def main():
     parser.add_argument(
         "--model",
         default="svr",
-        choices=MODEL_NAMES,
+        choices=PREDICT_MODEL_NAMES,
         help="Which model to use (default: svr, the best in evaluation)",
     )
     parser.add_argument("--k1", type=float, help="Thermal conductivity of phase 1")
