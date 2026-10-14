@@ -4,8 +4,10 @@ Machine learning surrogate models predicting the effective thermal conductivity 
 
 ## Data
 
-- `Data-Keff-Num.csv`: numerical simulation data (`K1`, `K2`, `V2`, `Keff-Num`) on a full 21 x 21 x 10 grid (4410 samples).
-- `blind_validation.csv`: held-out data (`K1`, `K2`, `V2`) for blind prediction.
+The dataset is hosted on Zenodo: [10.5281/zenodo.23325199](https://doi.org/10.5281/zenodo.23325199). Download both files into the repository root:
+
+- `thermal_conductivity_data.csv`: numerical simulation data (`K1`, `K2`, `V2`, `Keff-Num`) on a full 21 x 21 x 10 grid (4410 samples).
+- `blind_validation_data.csv`: held-out data (`K1`, `K2`, `V2`) for blind prediction (40 samples).
 
 ## Installation
 
@@ -21,7 +23,7 @@ pip install -r requirements.txt
 python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
 python main.py --config configs/baseline.yaml     # evaluate several models from a config
 python tune.py                                    # hyperparameter search
-python predict.py --input blind_validation.csv --output predictions.csv   # predict Keff
+python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
 python shap_analysis.py                           # SHAP plots in figures/
 ```
 

@@ -6,7 +6,7 @@ passed to ``main.py --config`` overrides any model hyperparameters per run;
 these values are the fallback when the YAML (or the CLI) leaves them out.
 """
 
-DATA_PATH = "Data-Keff-Num.csv"
+DATA_PATH = "thermal_conductivity_data.csv"
 FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
 
