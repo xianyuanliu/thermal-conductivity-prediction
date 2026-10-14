@@ -71,12 +71,16 @@ def require(package: str, model: str):
     """Imports an optional foundation-model backend, or explains how to install it.
 
     tabpfn, tabfm and tabicl pull in PyTorch, so they are imported only when
-    their model is built; the other models never need them.
+    their model is built; the other models never need them. Only a missing
+    top-level package gets the install hint; any other import failure inside an
+    installed backend (a missing dependency, a broken binary) is re-raised as is.
     """
     try:
         return importlib.import_module(package)
-    except ImportError as e:
-        raise ImportError(
+    except ModuleNotFoundError as e:
+        if e.name != package.partition(".")[0]:
+            raise
+        raise ModuleNotFoundError(
             f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements-fm.txt"
         ) from e
 

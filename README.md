@@ -36,7 +36,7 @@ Models: linear regression (`linear`), ridge regression (`ridge`), lasso regressi
 > **License notes:** The foundation models download pretrained weights whose licenses are more restrictive than this repository's.
 >
 > - **TabPFN:** the weights are licensed for non-commercial use only, and downloading them requires accepting the license with a Prior Labs account. On first use, TabPFN opens a browser to log in and caches the token. Without a browser (servers, CI), accept the license at [ux.priorlabs.ai](https://ux.priorlabs.ai), copy an API key, and set the `TABPFN_TOKEN` environment variable. See [Prior Labs' gated-model guide](https://docs.priorlabs.ai/how-to-access-gated-models).
-> - **TabFM:** the weights are licensed only for non-commercial, non-production use; see [TabFM's pretrained-weights license notice](https://github.com/google-research/tabfm#license-notice-for-pretrained-weights).
+> - **TabFM:** the weights are licensed only for non-commercial, non-production use; see [TabFM's pretrained-weights license notice](https://github.com/google-research/tabfm#license-notice-for-pretrained-weights). TabFM is therefore available for evaluation in `main.py` only, not in `predict.py`.
 
 ## Citation
 
