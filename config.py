@@ -12,7 +12,7 @@ RANDOM_STATE = 42
 TEST_SIZE = 0.2
 N_FOLDS = 10
 
-# Default hyperparameters per model. svr, mlp and rf values are extracted from tune.py.
+# Default hyperparameters per model. svr, mlp and rf values are selected by tune.py.
 DEFAULT_PARAMS = {
     "linear": {},
     "ridge": {"alpha": 1.0},

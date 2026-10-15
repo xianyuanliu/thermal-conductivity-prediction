@@ -22,6 +22,7 @@ pip install -r requirements.txt
 ```bash
 python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
 python main.py --config configs/baseline.yaml     # evaluate several models from a config
+python print.py --results results_random.csv      # bar charts of CV results in figures/
 python tune.py                                    # hyperparameter search
 python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
 python shap_analysis.py                           # SHAP plots in figures/

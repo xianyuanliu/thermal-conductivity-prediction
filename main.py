@@ -263,8 +263,8 @@ def main():
     parser.add_argument(
         "--cv",
         choices=["random", "v2"],
-        help="Run 10-fold CV instead of the single split: "
-        "'random' is shuffled, 'v2' is leave-one-V2-out",
+        help="Run CV instead of the single split: "
+        "'random' is shuffled 10-fold, 'v2' is leave-one-V2-out",
     )
     parser.add_argument(
         "--results",

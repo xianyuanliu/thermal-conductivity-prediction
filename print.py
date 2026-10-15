@@ -30,7 +30,7 @@ METRIC_LABELS = {
 }
 CV_LABELS = {
     "random": f"shuffled {N_FOLDS}-fold CV",
-    "v2": "leave-V2-out CV",
+    "v2": "leave-one-V2-out CV",
 }
 
 
