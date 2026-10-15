@@ -1,13 +1,10 @@
-"""User-facing prediction of effective thermal conductivity.
+"""Predicts effective thermal conductivity with a model trained on the full dataset.
 
-Predicts Keff for given (K1, K2, V2) inputs using a model trained on the full
-dataset (evaluation belongs to main.py; the deployed model has no reason to
-hold data back). The first call trains and caches the model under models/;
-later calls load the cache.
+The first run trains the model and caches it under models/; later runs load the cache.
 
 Usage:
   python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3
-  python predict.py --input new_points.csv --output predictions.csv
+  python predict.py --input blind_validation_data.csv --output predictions.csv
   python predict.py --model rf --k1 ... --k2 ... --v2 ...   # non-default model
 """
 
@@ -25,15 +22,9 @@ PREDICTION_COLUMN = "Keff-Pred"
 
 
 def load_or_train(name: str, retrain: bool):
-    """Returns (model, feature_ranges), training and caching on a cache miss.
+    """Returns the fitted model and each feature's (min, max) training range.
 
-    Args:
-        name: Model name understood by build_model.
-        retrain: Ignore any cached model and train from scratch.
-
-    Returns:
-        The fitted model and a dict mapping each feature to its (min, max)
-        range in the training data.
+    Loads the cached model unless retrain is set or no cache exists.
     """
     path = os.path.join(MODELS_DIR, f"{name}.joblib")
     if not retrain and os.path.exists(path):

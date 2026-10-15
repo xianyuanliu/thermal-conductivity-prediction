@@ -5,8 +5,8 @@ one bar chart per metric, with each model's mean as the bar and its std as the
 error bar. Figures are written to figures/.
 
 Usage:
-  python print.py                          # plots results_random.csv
-  python print.py --results results_v2.csv
+  python print.py                              # plots results_v2.csv
+  python print.py --results results_random.csv
 """
 
 import argparse

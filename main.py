@@ -5,17 +5,11 @@ MAPE and max relative error. Run one model from the command line:
 
   python main.py --model svr              # single fixed 80/20 split
   python main.py --model svr --cv random  # shuffled 10-fold CV
-  python main.py --model svr --cv v2      # leave-one-V2-out 10-fold CV
+  python main.py --model svr --cv v2      # leave-one-V2-out CV
 
 or run several at once from a YAML config (see configs/baseline.yaml):
 
   python main.py --config configs/baseline.yaml
-
-Defaults (paths, constants, per-model hyperparameters) live in config.py; a
-config file only needs to list what it overrides. Pass --results PATH (or set
-`results:` in the config) to save metrics, upserted one row per configuration;
-omit it to run without saving. For CV, per-fold metrics are written next to the
-summary with a _folds suffix (results.csv -> results_folds.csv).
 """
 
 import argparse
@@ -57,9 +51,9 @@ from config import (
 def resolve_params(name: str, params: dict | None = None) -> dict:
     """Returns the hyperparameters a model will actually be built with.
 
-    config.DEFAULT_PARAMS[name] with params merged on top (overrides win), e.g.
-    {"C": 100} for svr or {"n_estimators": 500} for rf. This is also what the
-    results files record, so a row stays identifiable after the defaults change.
+    config.DEFAULT_PARAMS[name] with params merged on top (overrides win). This
+    is also what the results files record, so a row stays identifiable after
+    the defaults change.
     """
     if name not in DEFAULT_PARAMS:
         raise ValueError(f"Unknown model: {name}")
@@ -70,7 +64,7 @@ def build_model(name: str, params: dict | None = None):
     """Returns a fresh estimator by name, with optional hyperparameter overrides.
 
     Scale-sensitive models get a StandardScaler on the features and, where the
-    target's ~1e-3 scale matters (svr, mlp), on the target too.
+    target's ~1e-3 scale matters (svr, mlp), on the target.
     """
     p = resolve_params(name, params)
     if name == "linear":
@@ -113,18 +107,9 @@ def compute_metrics(y_true, y_pred):
 
 
 def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
-    """Upserts rows into a CSV: drops rows matching the new key, then appends.
-
-    Args:
-        path: CSV file to update (created if missing).
-        new_rows: Rows to write; all share the same key values.
-        key_cols: Columns identifying which existing rows to replace.
-    """
+    """Upserts rows into a CSV: drops rows matching the new key, then appends."""
     if os.path.exists(path):
         results = pd.read_csv(path)
-        for col in key_cols:  # A file written before this column existed.
-            if col not in results.columns:
-                results[col] = pd.NA
         key = [new_rows.iloc[0][col] for col in key_cols]
         keep = ~(results[key_cols] == key).all(axis=1)
         results = pd.concat([results[keep], new_rows], ignore_index=True)
@@ -165,10 +150,7 @@ def run_single_split(
     results_path: str | None = None,
     params: dict | None = None,
 ):
-    """Trains on the fixed 80/20 split shared by every model and reports metrics.
-
-    Saves to results_path when given (one row per model, upserted).
-    """
+    """Trains on the fixed 80/20 split shared by every model and reports metrics."""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
@@ -205,15 +187,11 @@ def run_cv(
     results_path: str | None = None,
     params: dict | None = None,
 ):
-    """Runs 10-fold CV and reports per-fold metrics plus their mean and std.
-
-    Saves the summary to results_path and per-fold metrics to its _folds
-    variant when results_path is given.
-    """
+    """Runs CV and reports per-fold metrics plus their mean and std."""
     params_repr = str(resolve_params(model_name, params))
     rows = []
     for fold, v2_value, train_idx, test_idx in iter_folds(X, cv):
-        model = build_model(model_name, params)  # Fresh model per fold.
+        model = build_model(model_name, params)
         model.fit(X.iloc[train_idx], y.iloc[train_idx])
         fold_metrics = compute_metrics(y.iloc[test_idx], model.predict(X.iloc[test_idx]))
         rows.append(

@@ -1,13 +1,10 @@
-# Evaluation mode: single (fixed 80/20 split), random (shuffled 10-fold),
-# or v2 (leave-one-V2-out 10-fold, the extrapolation test).
+# Evaluation mode: single (80/20 split), random (shuffled 10-fold CV) or v2 (leave-one-V2-out CV).
 evaluation: random
 
-# Where to write metrics. Omit to run without saving. For CV, per-fold metrics
-# are written next to this with a _folds suffix (results_v2_folds.csv).
+# Metrics CSV. Omit to skip saving. random and v2 also write per-fold metrics to results_random_folds.csv.
 results: results_random.csv
 
-# Models to run, each with hyperparameter overrides. An empty {} uses the
-# built-in defaults from build_model; any key listed here overrides them.
+# Models to run, with hyperparameters overriding config.DEFAULT_PARAMS. {} keeps the defaults.
 models:
   linear: {}
   ridge: {alpha: 1.0}

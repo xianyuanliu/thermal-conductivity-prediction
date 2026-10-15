@@ -29,9 +29,7 @@ from config import DATA_PATH, FEATURES, METRIC_NAMES, TARGET
 from main import build_model, compute_metrics, iter_folds
 
 # Candidate values per hyperparameter; the search is the full cross product.
-# Chosen around the current config.py defaults, one order of magnitude either
-# way. For svr, C and epsilon act on a standardized target (see config.py), so
-# epsilon is a fraction of a standard deviation rather than of ~1e-3.
+# svr's C and epsilon act on the standardized target (see main.build_model).
 SEARCH_SPACES = {
     "svr": {
         "C": [1.0, 10.0, 100.0, 1000.0],
@@ -69,14 +67,8 @@ def candidates(space: dict):
 
 
 def score_candidate(name: str, params: dict, X: pd.DataFrame, y: pd.Series, folds: list):
-    """Returns mean metrics for one candidate across the given folds.
-
-    A fresh model is fitted per fold, exactly as main.run_cv does, so the
-    numbers here are comparable to the ones in results_v2.csv.
-    """
-    # MLPRegressor warns per fit when it hits max_iter; the search is about
-    # relative ranking, so that is noise. Set here because workers do not
-    # inherit the parent's filters.
+    """Returns mean metrics for one candidate, fitted per fold as in main.run_cv."""
+    # Silence MLP max_iter warnings; set here because workers don't inherit filters.
     warnings.filterwarnings("ignore", category=ConvergenceWarning)
     fit_params = {**params, **SEARCH_ONLY_PARAMS.get(name, {})}
     rows = []
