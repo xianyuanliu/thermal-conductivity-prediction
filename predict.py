@@ -9,27 +9,39 @@ Usage:
 """
 
 import argparse
+import hashlib
 import os
 
 import joblib
 import pandas as pd
 
 from config import DATA_PATH, FEATURES, MODEL_NAMES, TARGET
-from main import build_model
+from main import build_model, resolve_params
 
 MODELS_DIR = "models"
 PREDICTION_COLUMN = "Keff-Pred"
 
 
+def cache_key(name: str) -> dict:
+    """Identifies what a cached model was trained with: its hyperparameters and the data."""
+    with open(DATA_PATH, "rb") as f:
+        data_hash = hashlib.sha256(f.read()).hexdigest()
+    return {"params": resolve_params(name), "data_sha256": data_hash}
+
+
 def load_or_train(name: str, retrain: bool):
     """Returns the fitted model and each feature's (min, max) training range.
 
-    Loads the cached model unless retrain is set or no cache exists.
+    Loads the cached model unless retrain is set, no cache exists, or the
+    hyperparameters or data have changed since it was cached.
     """
     path = os.path.join(MODELS_DIR, f"{name}.joblib")
+    key = cache_key(name)
     if not retrain and os.path.exists(path):
         payload = joblib.load(path)
-        return payload["model"], payload["feature_ranges"]
+        if payload.get("key") == key:
+            return payload["model"], payload["feature_ranges"]
+        print(f"Cached {name} is out of date (hyperparameters or data changed); retraining")
 
     df = pd.read_csv(DATA_PATH)
     model = build_model(name)
@@ -37,7 +49,7 @@ def load_or_train(name: str, retrain: bool):
     feature_ranges = {feature: (df[feature].min(), df[feature].max()) for feature in FEATURES}
 
     os.makedirs(MODELS_DIR, exist_ok=True)
-    joblib.dump({"model": model, "feature_ranges": feature_ranges}, path)
+    joblib.dump({"key": key, "model": model, "feature_ranges": feature_ranges}, path)
     print(f"Trained {name} on the full dataset and cached it to {path}")
     return model, feature_ranges
 

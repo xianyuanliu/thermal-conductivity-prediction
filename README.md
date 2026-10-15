@@ -20,13 +20,19 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
+python tune.py                                    # hyperparameter search (defaults in config.py already tuned)
 python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
 python main.py --config configs/baseline.yaml     # evaluate several models from a config
 python print.py --results results_random.csv      # bar charts of CV results in figures/
-python tune.py                                    # hyperparameter search
-python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
 python shap_analysis.py                           # SHAP plots in figures/
+python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
 ```
+
+Three evaluation modes are available:
+
+- `single`: one fixed 80/20 train/test split.
+- `random`: 10-fold cross-validation (CV) with shuffled folds.
+- `v2`: leave-one-V2-out CV. Each fold holds out all samples at one V2 value, so the model is tested on volume fractions it has not seen during training.
 
 Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`). See [config.py](config.py) for details.
 
