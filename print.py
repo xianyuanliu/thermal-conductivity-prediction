@@ -33,19 +33,19 @@ CV_LABELS = {
 }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Plot CV results, one figure per metric")
-    parser.add_argument("--input", default="results_v2.csv", help="CV summary CSV to plot")
-    parser.add_argument("--output", default="figures", help="Directory to save figures (default: figures)")
-    args = parser.parse_args()
-
-    df = pd.read_csv(args.input)
-    os.makedirs(args.output, exist_ok=True)
-    stem = os.path.splitext(os.path.basename(args.input))[0]
-    cv_label = CV_LABELS.get(df["cv"].iloc[0], "cross-validation")
+def plot_cv_results(
+    df: pd.DataFrame,
+    stem: str,
+    output_dir: str = "figures",
+    metric_labels: dict = METRIC_LABELS,
+    cv_labels: dict = CV_LABELS,
+):
+    """Draws one bar chart per metric from a CV summary and saves them as {stem}_{metric}.png."""
+    os.makedirs(output_dir, exist_ok=True)
+    cv_label = cv_labels.get(df["cv"].iloc[0], "cross-validation")
 
     for metric in METRIC_NAMES:
-        label = METRIC_LABELS.get(metric, metric)
+        label = metric_labels.get(metric, metric)
         fig, ax = plt.subplots()
         ax.bar(df["model"], df[f"{metric}_mean"], yerr=df[f"{metric}_std"], capsize=4)
         ax.set_xlabel("Model")
@@ -53,10 +53,21 @@ def main():
         ax.set_title(f"{label} by model ({cv_label}, mean ± std)")
         fig.tight_layout()
 
-        path = os.path.join(args.output, f"{stem}_{metric}.png")
+        path = os.path.join(output_dir, f"{stem}_{metric}.png")
         fig.savefig(path, dpi=200)
         plt.close(fig)
         print(f"Wrote {path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Plot CV results, one figure per metric")
+    parser.add_argument("--input", default="results_v2.csv", help="CV summary CSV to plot")
+    parser.add_argument("--output", default="figures", help="Directory to save figures (default: figures)")
+    args = parser.parse_args()
+
+    df = pd.read_csv(args.input)
+    stem = os.path.splitext(os.path.basename(args.input))[0]
+    plot_cv_results(df, stem, args.output)
 
 
 if __name__ == "__main__":

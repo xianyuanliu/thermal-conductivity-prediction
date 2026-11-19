@@ -77,12 +77,18 @@ def score_candidate(name: str, params: dict, X: pd.DataFrame, y: pd.Series, fold
     return {"model": name, "params": str(params), **pd.DataFrame(rows).mean().to_dict()}
 
 
-def search(name: str, X: pd.DataFrame, y: pd.Series, metric: str, n_jobs: int):
-    """Scores every candidate for one model in parallel, ranked best first."""
+def search(
+    name: str, X: pd.DataFrame, y: pd.Series, metric: str, n_jobs: int, space: dict | None = None
+):
+    """Scores every candidate for one model in parallel, ranked best first.
+
+    space overrides SEARCH_SPACES[name].
+    """
+    space = SEARCH_SPACES[name] if space is None else space
     folds = list(iter_folds(X, "v2"))
     rows = Parallel(n_jobs=n_jobs, verbose=5)(
         delayed(score_candidate)(name, params, X, y, folds)
-        for params in candidates(SEARCH_SPACES[name])
+        for params in candidates(space)
     )
     return pd.DataFrame(rows).sort_values(
         metric, ascending=metric not in GREATER_IS_BETTER, ignore_index=True

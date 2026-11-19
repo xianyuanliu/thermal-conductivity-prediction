@@ -18,9 +18,6 @@ import pandas as pd
 from config import DATA_PATH, FEATURES, MODEL_NAMES, TARGET
 from main import build_model, resolve_params
 
-MODELS_DIR = "models"
-PREDICTION_COLUMN = "Keff-Pred"
-
 
 def cache_key(name: str) -> dict:
     """Get the key for a cached model, including hyperparameters and the data used."""
@@ -29,13 +26,13 @@ def cache_key(name: str) -> dict:
     return {"params": resolve_params(name), "data_sha256": data_hash}
 
 
-def load_or_train(name: str, retrain: bool):
+def load_or_train(name: str, retrain: bool, models_dir: str = "models"):
     """Returns the fitted model and each feature's (min, max) training range.
 
     Loads the cached model unless retrain is set, no cache exists, or the
     hyperparameters or data have changed since it was cached.
     """
-    path = os.path.join(MODELS_DIR, f"{name}.joblib")
+    path = os.path.join(models_dir, f"{name}.joblib")
     key = cache_key(name)
     if not retrain and os.path.exists(path):
         payload = joblib.load(path)
@@ -48,7 +45,7 @@ def load_or_train(name: str, retrain: bool):
     model.fit(df[FEATURES], df[TARGET])
     feature_ranges = {feature: (df[feature].min(), df[feature].max()) for feature in FEATURES}
 
-    os.makedirs(MODELS_DIR, exist_ok=True)
+    os.makedirs(models_dir, exist_ok=True)
     joblib.dump({"key": key, "model": model, "feature_ranges": feature_ranges}, path)
     print(f"Trained {name} on the full dataset and cached it to {path}")
     return model, feature_ranges
@@ -102,7 +99,7 @@ def main():
         if missing:
             parser.error(f"{args.input} is missing columns: {', '.join(missing)}")
         warn_if_out_of_range(data, feature_ranges)
-        data[PREDICTION_COLUMN] = model.predict(data[FEATURES])
+        data["Keff-Pred"] = model.predict(data[FEATURES])
         data.to_csv(args.output, index=False)
         print(f"{len(data)} predictions written to {args.output}")
     else:
