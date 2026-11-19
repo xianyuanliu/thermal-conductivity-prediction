@@ -23,7 +23,7 @@ pip install -r requirements.txt
 python tune.py                                    # hyperparameter search (defaults in config.py already tuned)
 python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
 python main.py --config configs/baseline.yaml     # evaluate several models from a config
-python print.py --results results_random.csv      # bar charts of CV results in figures/
+python print.py --input results_random.csv        # bar charts of CV results in figures/
 python shap_analysis.py                           # SHAP plots in figures/
 python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
 ```

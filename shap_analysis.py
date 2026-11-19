@@ -2,9 +2,10 @@
 
 With three features, Kernel SHAP enumerates all 2^3 coalitions, so the
 Shapley values are exact. Prints the importance ranking and writes summary
-and dependence plots to figures/.
+and dependence plots to figures/ unless --output is given.
 """
 
+import argparse
 import os
 
 import matplotlib
@@ -19,11 +20,14 @@ from sklearn.model_selection import train_test_split
 from config import DATA_PATH, FEATURES, RANDOM_STATE, TARGET, TEST_SIZE
 from main import build_model
 
-FIGURES_DIR = "figures"
 N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
 
 
 def main():
+    parser = argparse.ArgumentParser(description="SHAP analysis of the SVR model")
+    parser.add_argument("--output", default="figures", help="Directory to save figures (default: figures)")
+    args = parser.parse_args()
+
     df = pd.read_csv(DATA_PATH)
     X = df[FEATURES]
     y = df[TARGET]
@@ -55,22 +59,22 @@ def main():
     for feature, value in importance.items():
         print(f"  {feature}: {value:.6g} ({value / importance.sum():.1%})")
 
-    os.makedirs(FIGURES_DIR, exist_ok=True)
+    os.makedirs(args.output, exist_ok=True)
 
     shap.summary_plot(shap_values, X_test, show=False)
     plt.title("SHAP summary (SVR)")
     plt.tight_layout()
-    plt.savefig(os.path.join(FIGURES_DIR, "shap_summary.png"), dpi=200)
+    plt.savefig(os.path.join(args.output, "shap_summary.png"), dpi=200)
     plt.close()
 
     for feature in FEATURES:
         shap.dependence_plot(feature, shap_values, X_test, show=False)
         plt.title(f"SHAP dependence: {feature} (SVR)")
         plt.tight_layout()
-        plt.savefig(os.path.join(FIGURES_DIR, f"shap_dependence_{feature}.png"), dpi=200)
+        plt.savefig(os.path.join(args.output, f"shap_dependence_{feature}.png"), dpi=200)
         plt.close()
 
-    print(f"\nPlots saved to {FIGURES_DIR}/")
+    print(f"\nPlots saved to {args.output}/")
 
 
 if __name__ == "__main__":

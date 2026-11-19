@@ -110,9 +110,9 @@ def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     results.to_csv(path, index=False)
 
 
-def folds_path(results_path: str):
+def folds_path(output_path: str):
     """Derives the per-fold CSV path from the summary path: foo.csv -> foo_folds.csv."""
-    root, ext = os.path.splitext(results_path)
+    root, ext = os.path.splitext(output_path)
     return f"{root}_folds{ext}"
 
 
@@ -138,7 +138,7 @@ def run_single_split(
     model_name: str,
     X: pd.DataFrame,
     y: pd.Series,
-    results_path: str | None = None,
+    output_path: str | None = None,
     params: dict | None = None,
 ):
     """Trains on the fixed 80/20 split."""
@@ -165,9 +165,9 @@ def run_single_split(
     print(f"Test  MAPE: {metrics['test_mape']:.4%}")
     print(f"Test  max rel err: {metrics['test_max_rel_err']:.4%}")
 
-    if results_path:
-        save_results(results_path, pd.DataFrame([metrics]), ["model", "params"])
-        print(f"Metrics saved to {results_path}")
+    if output_path:
+        save_results(output_path, pd.DataFrame([metrics]), ["model", "params"])
+        print(f"Metrics saved to {output_path}")
 
 
 def run_cv(
@@ -175,7 +175,7 @@ def run_cv(
     cv: str,
     X: pd.DataFrame,
     y: pd.Series,
-    results_path: str | None = None,
+    output_path: str | None = None,
     params: dict | None = None,
 ):
     """Runs CV and reports per-fold metrics plus their mean and std."""
@@ -202,18 +202,18 @@ def run_cv(
         summary[f"{name}_std"] = folds[name].std()
         print(f"  {name:12s}: {summary[f'{name}_mean']:.6g} +/- {summary[f'{name}_std']:.6g}")
 
-    if results_path:
-        folds_file = folds_path(results_path)
+    if output_path:
+        folds_file = folds_path(output_path)
         save_results(folds_file, folds, ["model", "params", "cv"])
-        save_results(results_path, pd.DataFrame([summary]), ["model", "params", "cv"])
-        print(f"Fold metrics saved to {folds_file}, summary to {results_path}")
+        save_results(output_path, pd.DataFrame([summary]), ["model", "params", "cv"])
+        print(f"Fold metrics saved to {folds_file}, summary to {output_path}")
 
 
 def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
     """Runs every model listed in a YAML config under one evaluation mode.
 
     The config keys are: 'evaluation' (single/random/v2, default single),
-    'results' (optional CSV path), and 'models' (a map of model name to a dict
+    'output' (optional CSV path), and 'models' (a map of model name to a dict
     of hyperparameter overrides. {} keeps the defaults).
     """
     with open(config_path) as f:
@@ -223,7 +223,7 @@ def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
     if evaluation not in EVALUATIONS:
         raise ValueError(f"evaluation must be one of {EVALUATIONS}, got {evaluation!r}")
 
-    results_path = config.get("results")
+    output_path = config.get("output")
     models = config.get("models") or {}
     unknown = [name for name in models if name not in MODEL_NAMES]
     if unknown:
@@ -233,9 +233,9 @@ def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
 
     for name, params in models.items():
         if evaluation == "single":
-            run_single_split(name, X, y, results_path=results_path, params=params)
+            run_single_split(name, X, y, output_path=output_path, params=params)
         else:
-            run_cv(name, evaluation, X, y, results_path=results_path, params=params)
+            run_cv(name, evaluation, X, y, output_path=output_path, params=params)
         print()
 
 
@@ -257,7 +257,7 @@ def main():
         help="Run cross-validation: 'random' is shuffled 10-fold, 'v2' is leave-one-V2-out",
     )
     parser.add_argument(
-        "--results", help="CSV path to save results. If omitted, results are not saved"
+        "--output", help="CSV path to save results. If omitted, results are not saved"
     )
     args = parser.parse_args()
 
@@ -268,9 +268,9 @@ def main():
     if args.config:
         run_config(args.config, X, y)
     elif args.cv:
-        run_cv(args.model, args.cv, X, y, results_path=args.results)
+        run_cv(args.model, args.cv, X, y, output_path=args.output)
     else:
-        run_single_split(args.model, X, y, results_path=args.results)
+        run_single_split(args.model, X, y, output_path=args.output)
 
 
 if __name__ == "__main__":

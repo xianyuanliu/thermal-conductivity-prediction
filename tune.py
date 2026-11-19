@@ -56,8 +56,6 @@ GREATER_IS_BETTER = {"r2"}
 # not part of the candidate params.
 SEARCH_ONLY_PARAMS = {"rf": {"n_jobs": 1}}
 
-RESULTS_PATH = "tuning.csv"
-
 
 def candidates(space: dict):
     """Yields every combination in a search space as a params dict."""
@@ -107,7 +105,7 @@ def main():
         help="Metric to rank candidates by (default: r2)",
     )
     parser.add_argument(
-        "--results", default=RESULTS_PATH, help=f"Where to write the ranking (default: {RESULTS_PATH})"
+        "--output", default="tuning.csv", help="CSV path to save the ranking (default: tuning.csv)"
     )
     parser.add_argument(
         "--n-jobs", type=int, default=-1, help="Candidates to score in parallel (default: all cores)"
@@ -126,7 +124,7 @@ def main():
         print(f"  best {args.metric}={best[args.metric]:.6g}  {best['params']}\n", flush=True)
 
     ranked = pd.concat(rankings, ignore_index=True)
-    ranked.to_csv(args.results, index=False)
+    ranked.to_csv(args.output, index=False)
 
     best = pd.DataFrame([ranking.iloc[0] for ranking in rankings]).sort_values(
         args.metric, ascending=args.metric not in GREATER_IS_BETTER
@@ -135,7 +133,7 @@ def main():
     print(best[["model", *METRIC_NAMES, "params"]].to_string(index=False, float_format=lambda v: f"{v:.6g}"))
     print()
     print(f"Winner: {best.iloc[0]['model']} with {best.iloc[0]['params']}")
-    print(f"Full ranking written to {args.results}")
+    print(f"Full ranking written to {args.output}")
 
 
 if __name__ == "__main__":
