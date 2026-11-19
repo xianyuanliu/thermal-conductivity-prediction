@@ -1,13 +1,13 @@
-"""Effective thermal conductivity prediction from two-phase composite data.
+"""Effective thermal conductivity prediction from composite data.
 
-Trains regression models on (K1, K2, V2) -> Keff and reports R^2, RMSE, MAE,
-MAPE and max relative error. Run one model from the command line:
+Trains regression models on (K1, K2, V2) to predict Keff and reports R^2, RMSE,
+MAE, MAPE and max relative error. Run one model from the command line:
 
-  python main.py --model svr              # single fixed 80/20 split
-  python main.py --model svr --cv random  # shuffled 10-fold CV
-  python main.py --model svr --cv v2      # leave-one-V2-out CV
+  python main.py --model svr              # single fixed 80/20 training and test split
+  python main.py --model svr --cv random  # shuffled 10-fold cross-validation
+  python main.py --model svr --cv v2      # leave-one-V2-out cross-validation (extrapolation test)
 
-or run several at once from a YAML config (see configs/baseline.yaml):
+or run several models at once using a YAML config file:
 
   python main.py --config configs/baseline.yaml
 """
@@ -49,12 +49,7 @@ from config import (
 
 
 def resolve_params(name: str, params: dict | None = None) -> dict:
-    """Returns the hyperparameters a model will actually be built with.
-
-    config.DEFAULT_PARAMS[name] with params merged on top (overrides win). This
-    is also what the results files record, so a row stays identifiable after
-    the defaults change.
-    """
+    """Returns the model hyperparameters."""
     if name not in DEFAULT_PARAMS:
         raise ValueError(f"Unknown model: {name}")
     return {**DEFAULT_PARAMS[name], **(params or {})}
@@ -63,8 +58,8 @@ def resolve_params(name: str, params: dict | None = None) -> dict:
 def build_model(name: str, params: dict | None = None):
     """Returns a fresh estimator by name, with optional hyperparameter overrides.
 
-    Scale-sensitive models get a StandardScaler on the features and, where the
-    target's ~1e-3 scale matters (svr, mlp), on the target.
+    Scale-sensitive models get a StandardScaler on the features and, for svr and
+    mlp, on the target.
     """
     p = resolve_params(name, params)
     if name == "linear":
@@ -91,10 +86,7 @@ def build_model(name: str, params: dict | None = None):
 
 
 def compute_metrics(y_true, y_pred):
-    """Returns regression metrics keyed by METRIC_NAMES.
-
-    Values are in original units; relative errors are fractions, not percent.
-    """
+    """Returns regression metrics keyed by METRIC_NAMES."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     return {
@@ -107,7 +99,7 @@ def compute_metrics(y_true, y_pred):
 
 
 def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
-    """Upserts rows into a CSV: drops rows matching the new key, then appends."""
+    """Saves rows into a CSV: drops rows matching the new key, then appends."""
     if os.path.exists(path):
         results = pd.read_csv(path)
         key = [new_rows.iloc[0][col] for col in key_cols]
@@ -129,8 +121,7 @@ def iter_folds(X: pd.DataFrame, cv: str):
 
     "random" is a shuffled 10-fold split (v2_value is NaN). "v2" is
     leave-one-V2-out: the data holds exactly ten V2 values, so each fold holds
-    out every sample of one volume fraction. Folds are ordered by V2; the
-    first and last folds are true extrapolation beyond the training range.
+    out every sample of one volume fraction. Folds are ordered by V2.
     """
     if cv == "random":
         kfold = KFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_STATE)
@@ -150,7 +141,7 @@ def run_single_split(
     results_path: str | None = None,
     params: dict | None = None,
 ):
-    """Trains on the fixed 80/20 split shared by every model and reports metrics."""
+    """Trains on the fixed 80/20 split."""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
@@ -223,7 +214,7 @@ def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
 
     The config keys are: 'evaluation' (single/random/v2, default single),
     'results' (optional CSV path), and 'models' (a map of model name to a dict
-    of hyperparameter overrides; {} keeps the defaults).
+    of hyperparameter overrides. {} keeps the defaults).
     """
     with open(config_path) as f:
         config = yaml.safe_load(f) or {}
@@ -252,23 +243,21 @@ def main():
     parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
     parser.add_argument(
         "--config",
-        help="YAML config to run several models at once; overrides --model/--cv/--results",
+        help="YAML config file listing models to run; if omitted, a single model is run",
     )
     parser.add_argument(
         "--model",
         default="linear",
         choices=MODEL_NAMES,
-        help="Which model to train (default: linear)",
+        help="Model to run (default: linear)",
     )
     parser.add_argument(
         "--cv",
         choices=["random", "v2"],
-        help="Run CV instead of the single split: "
-        "'random' is shuffled 10-fold, 'v2' is leave-one-V2-out",
+        help="Run cross-validation: 'random' is shuffled 10-fold, 'v2' is leave-one-V2-out",
     )
     parser.add_argument(
-        "--results",
-        help="CSV path to save metrics to; if omitted, results are not saved",
+        "--results", help="CSV path to save results. If omitted, results are not saved"
     )
     args = parser.parse_args()
 

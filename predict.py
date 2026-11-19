@@ -1,6 +1,6 @@
 """Predicts effective thermal conductivity with a model trained on the full dataset.
 
-The first run trains the model and caches it under models/; later runs load the cache.
+The first run trains the model and caches it under models/. The later runs load the cached model.
 
 Usage:
   python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3
@@ -23,7 +23,7 @@ PREDICTION_COLUMN = "Keff-Pred"
 
 
 def cache_key(name: str) -> dict:
-    """Identifies what a cached model was trained with: its hyperparameters and the data."""
+    """Get the key for a cached model, including hyperparameters and the data used."""
     with open(DATA_PATH, "rb") as f:
         data_hash = hashlib.sha256(f.read()).hexdigest()
     return {"params": resolve_params(name), "data_sha256": data_hash}
@@ -55,7 +55,7 @@ def load_or_train(name: str, retrain: bool):
 
 
 def warn_if_out_of_range(X: pd.DataFrame, feature_ranges: dict):
-    """Warns when inputs fall outside the training range (extrapolation)."""
+    """Warns when inputs fall outside the training range."""
     for feature, (low, high) in feature_ranges.items():
         outside = (X[feature] < low) | (X[feature] > high)
         if outside.any():
@@ -72,16 +72,16 @@ def main():
         "--model",
         default="svr",
         choices=MODEL_NAMES,
-        help="Which model to use (default: svr, the best in evaluation)",
+        help="Model to use (default: svr, the best in evaluation)",
     )
     parser.add_argument("--k1", type=float, help="Thermal conductivity of phase 1")
     parser.add_argument("--k2", type=float, help="Thermal conductivity of phase 2")
     parser.add_argument("--v2", type=float, help="Volume fraction of phase 2")
-    parser.add_argument("--input", help="CSV with K1, K2, V2 columns for batch prediction")
+    parser.add_argument("--input", help="CSV with K1, K2, V2 columns")
     parser.add_argument(
         "--output",
         default="predictions.csv",
-        help="Where to write batch predictions (default: predictions.csv)",
+        help="CSV path to save predictions (default: predictions.csv)",
     )
     parser.add_argument(
         "--retrain", action="store_true", help="Retrain even if a cached model exists"
