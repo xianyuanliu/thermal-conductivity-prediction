@@ -42,10 +42,7 @@ def main():
     df = pd.read_csv(args.input)
     os.makedirs(args.output, exist_ok=True)
     stem = os.path.splitext(os.path.basename(args.input))[0]
-
-    # Label the plots with the CV mode named in the filename (results_random -> random).
-    cv_key = next((key for key in CV_LABELS if key in stem.lower()), None)
-    cv_label = CV_LABELS[cv_key] if cv_key else "cross-validation"
+    cv_label = CV_LABELS.get(df["cv"].iloc[0], "cross-validation")
 
     for metric in METRIC_NAMES:
         label = METRIC_LABELS.get(metric, metric)
