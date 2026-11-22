@@ -7,6 +7,6 @@ matplotlib>=3.7
 shap>=0.45
 pyyaml>=6.0
 # Tabular foundation models (pull in PyTorch; only needed for tabpfn/tabfm/tabicl)
-tabpfn>=2.0
+tabpfn>=8.2  # v3 model: CPU size guard is 5,000 rows (1,000 in older versions)
 tabicl>=2.0
-tabfm[pytorch] @ git+https://github.com/google-research/tabfm.git
+tabfm[pytorch] @ git+https://github.com/google-research/tabfm.git@fbb665569425fd2f490c6576b3af967876fe11ff  # tested commit (Aug 2026); bump deliberately
