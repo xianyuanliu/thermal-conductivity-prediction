@@ -71,13 +71,17 @@ def require(package: str, model: str):
     """Imports an optional foundation-model backend, or explains how to install it.
 
     tabpfn, tabfm and tabicl pull in PyTorch, so they are imported only when
-    their model is built; the other models never need them.
+    their model is built; the other models never need them. Only a missing
+    top-level package gets the install hint; any other import failure inside an
+    installed backend (a missing dependency, a broken binary) is re-raised as is.
     """
     try:
         return importlib.import_module(package)
-    except ImportError as e:
-        raise ImportError(
-            f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements.txt"
+    except ModuleNotFoundError as e:
+        if e.name != package.partition(".")[0]:
+            raise
+        raise ModuleNotFoundError(
+            f"Model {model!r} needs the {package!r} package; install it with pip install -r requirements-fm.txt"
         ) from e
 
 
@@ -111,9 +115,9 @@ def build_model(name: str, params: dict | None = None):
     if name == "tabpfn":
         return require("tabpfn", name).TabPFNRegressor(**p)
     if name == "tabfm":
-        tabfm = require("tabfm.src.pytorch.tabfm_v1_0_0", name)
-        model = tabfm.load(model_type="regression")
-        return require("tabfm", name).TabFMRegressor(model=model, **p)
+        tabfm = require("tabfm", name)
+        model = tabfm.tabfm_v1_0_0_pytorch.load(model_type="regression")
+        return tabfm.TabFMRegressor(model=model, **p)
     if name == "tabicl":
         return require("tabicl", name).TabICLRegressor(**p)
     raise ValueError(f"Unknown model: {name}")

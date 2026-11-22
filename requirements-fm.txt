@@ -1,0 +1,7 @@
+# Tabular foundation models (pull in PyTorch; only needed for tabpfn/tabfm/tabicl)
+-r requirements.txt
+# 8.2.0 defaults to a TabPFN-3 model, whose 5,000-row CPU limit fits this dataset.
+tabpfn>=8.2.0
+tabicl>=2.0
+# Pinned to the v1.0.1 release commit; a tag or branch can move, a commit cannot.
+tabfm[pytorch] @ git+https://github.com/google-research/tabfm.git@d8678b6895f1428a468d4cc299c1ff4cf704e726

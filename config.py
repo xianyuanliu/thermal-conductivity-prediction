@@ -11,6 +11,9 @@ FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
 
 MODEL_NAMES = ["linear", "ridge", "lasso", "svr", "rf", "xgb", "mlp", "tabpfn", "tabfm", "tabicl"]
+# Models predict.py may train, cache and serve. TabFM is evaluation-only: its
+# pretrained weights are licensed for non-production use only (see README).
+PREDICT_MODEL_NAMES = [name for name in MODEL_NAMES if name != "tabfm"]
 METRIC_NAMES = ["r2", "rmse", "mae", "mape", "max_rel_err"]
 EVALUATIONS = ["single", "random", "v2"]
 
@@ -32,6 +35,9 @@ N_FOLDS = 10
 #   tabpfn, tabfm, tabicl: pretrained tabular foundation models that predict by
 #        in-context learning on the training set, so there is nothing to tune;
 #        they normalize features and target internally.
+#   tabpfn: on CPU, TabPFN refuses training sets above its row limit: 1,000 for
+#        pre-v3 models, 5,000 from v3 on. The full dataset has 4,410 rows, so
+#        requirements-fm.txt needs a release that defaults to a v3+ model.
 DEFAULT_PARAMS = {
     "linear": {},
     "ridge": {"alpha": 1.0},
