@@ -1,6 +1,6 @@
 # Thermal Conductivity Prediction
 
-Machine learning surrogate models predicting the effective thermal conductivity `Keff` of a two-phase composite from the conductivities of the two phases (`K1`, `K2`) and the volume fraction of phase 2 (`V2`).
+Machine learning surrogate models predicting the effective conductivity `Keff` of a two-phase composite from the conductivities of the two phases (`K1`, `K2`) and the volume fraction of phase 2 (`V2`).
 
 ## Data
 

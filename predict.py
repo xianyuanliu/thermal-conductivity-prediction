@@ -1,4 +1,4 @@
-"""Predicts effective thermal conductivity with a model trained on the full dataset.
+"""Predicts effective conductivity with a model trained on the full dataset.
 
 The first run trains the model and caches it under models/. The later runs load the cached model.
 
@@ -64,15 +64,15 @@ def warn_if_out_of_range(X: pd.DataFrame, feature_ranges: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Predict effective thermal conductivity")
+    parser = argparse.ArgumentParser(description="Predict effective conductivity")
     parser.add_argument(
         "--model",
         default="svr",
         choices=MODEL_NAMES,
         help="Model to use (default: svr, the best in evaluation)",
     )
-    parser.add_argument("--k1", type=float, help="Thermal conductivity of phase 1")
-    parser.add_argument("--k2", type=float, help="Thermal conductivity of phase 2")
+    parser.add_argument("--k1", type=float, help="Conductivity of phase 1")
+    parser.add_argument("--k2", type=float, help="Conductivity of phase 2")
     parser.add_argument("--v2", type=float, help="Volume fraction of phase 2")
     parser.add_argument("--input", help="CSV with K1, K2, V2 columns")
     parser.add_argument(

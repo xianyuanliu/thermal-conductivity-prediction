@@ -1,4 +1,4 @@
-"""Effective thermal conductivity prediction from composite data.
+"""Effective conductivity prediction from two-phase composite data.
 
 Trains regression models on (K1, K2, V2) to predict Keff and reports R^2, RMSE,
 MAE, MAPE and max relative error. Run one model from the command line:
@@ -240,7 +240,7 @@ def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Thermal conductivity prediction")
+    parser = argparse.ArgumentParser(description="Effective conductivity prediction")
     parser.add_argument(
         "--config",
         help="YAML config file listing models to run; if omitted, a single model is run",
