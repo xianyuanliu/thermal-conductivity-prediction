@@ -14,6 +14,8 @@ The `concrete_thermal` dataset is hosted on Zenodo: [10.5281/zenodo.23325199](ht
 - `thermal_conductivity_data.csv`: numerical simulation data (`K1`, `K2`, `V2`, `Keff-Num`) on a full 21 x 21 x 10 grid (4410 samples).
 - `blind_validation_data.csv`: held-out data (`K1`, `K2`, `V2`) for blind prediction (40 samples).
 
+The `soil_electrical` dataset goes in `data/soil_electrical/electrical_conductivity_data.csv` (`K1`, `K2`, `V2`, `Keff`) on the same 21 x 21 x 10 grid.
+
 ## Installation
 
 Requires Python 3.11+.
@@ -33,7 +35,16 @@ python shap_analysis.py                                                     # SH
 python predict.py --input data/concrete_thermal/blind_validation_data.csv   # predict Keff
 ```
 
-Outputs go to `outputs/concrete_thermal/` by default; pass `--output` to write elsewhere.
+Without arguments the scripts run `concrete_thermal`. To run another task, pass its config (or `--data` and `--target`); outputs then go to `outputs/<task>/`, named after the data folder:
+
+```bash
+python main.py --config configs/soil_electrical.yaml
+python shap_analysis.py --config configs/soil_electrical.yaml
+python predict.py --config configs/soil_electrical.yaml --k1 0.1 --k2 1e-6 --v2 0.6
+python tune.py --data data/soil_electrical/electrical_conductivity_data.csv --target Keff
+```
+
+Pass `--output` to write elsewhere.
 
 Three evaluation modes are available:
 

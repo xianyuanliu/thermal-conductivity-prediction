@@ -1,0 +1,20 @@
+# Electrical conductivity of soil mixtures.
+data: data/soil_electrical/electrical_conductivity_data.csv
+target: Keff
+
+# Evaluation mode: single (80/20 split), random (shuffled 10-fold CV) or v2 (leave-one-V2-out CV).
+evaluation: random
+
+# Metrics CSV. Omit to skip saving. random and v2 also write per-fold metrics to results_random_folds.csv.
+output: outputs/soil_electrical/results_random.csv
+
+# Models to run, with hyperparameters overriding config.DEFAULT_PARAMS. {} keeps the defaults.
+# These are the concrete_thermal values; rerun tune.py on this dataset before relying on them.
+models:
+  linear: {}
+  ridge: {alpha: 1.0}
+  lasso: {alpha: 1.0e-6}
+  svr: {C: 100.0, epsilon: 0.001}
+  rf: {n_estimators: 600, max_depth: 20, max_features: sqrt}
+  xgb: {n_estimators: 500, learning_rate: 0.05, max_depth: 6}
+  mlp: {hidden_layer_sizes: [128, 128], learning_rate_init: 0.003, max_iter: 2000}

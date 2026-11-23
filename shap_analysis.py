@@ -2,7 +2,7 @@
 
 With three features, Kernel SHAP enumerates all 2^3 coalitions, so the
 Shapley values are exact. Prints the importance ranking and writes summary
-and dependence plots to outputs/concrete_thermal/figures/ unless --output is given.
+and dependence plots to outputs/<task>/figures/ unless --output is given.
 """
 
 import argparse
@@ -17,8 +17,8 @@ import pandas as pd
 import shap
 from sklearn.model_selection import train_test_split
 
-from config import DATA_PATH, FEATURES, MODEL_NAMES, OUTPUT_DIR, RANDOM_STATE, TARGET, TEST_SIZE
-from main import build_model
+from config import FEATURES, MODEL_NAMES, RANDOM_STATE, TEST_SIZE
+from main import add_data_args, build_model, load_config, model_params, resolve_data, task_output_dir
 
 N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
 
@@ -26,9 +26,10 @@ N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
 def run_shap(
     X: pd.DataFrame,
     y: pd.Series,
+    output_dir: str,
     model_name: str = "svr",
+    params: dict | None = None,
     n_background: int = N_BACKGROUND,
-    output_dir: str = os.path.join(OUTPUT_DIR, "figures"),
 ):
     """Explains one model with Kernel SHAP, saves the plots and returns mean |SHAP| per feature."""
     # Same fixed split as main.py, so the explained model is the reported one.
@@ -36,7 +37,7 @@ def run_shap(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
 
-    model = build_model(model_name)
+    model = build_model(model_name, params)
     model.fit(X_train, y_train)
 
     def predict(data: np.ndarray):
@@ -82,15 +83,17 @@ def main():
     parser.add_argument(
         "--model", default="svr", choices=MODEL_NAMES, help="Model to explain (default: svr)"
     )
-    parser.add_argument(
-        "--output",
-        default=os.path.join(OUTPUT_DIR, "figures"),
-        help="Directory to save figures (default: %(default)s)",
-    )
+    parser.add_argument("--config", help="Task YAML config to read data, target and hyperparameters from")
+    parser.add_argument("--output", help="Directory to save figures (default: outputs/<task>/figures)")
+    add_data_args(parser)
     args = parser.parse_args()
 
-    df = pd.read_csv(DATA_PATH)
-    run_shap(df[FEATURES], df[TARGET], args.model, output_dir=args.output)
+    config = load_config(args.config)
+    data_path, target = resolve_data(args, config)
+    params = model_params(parser, args, config)
+    output_dir = args.output or os.path.join(task_output_dir(data_path), "figures")
+    df = pd.read_csv(data_path)
+    run_shap(df[FEATURES], df[target], output_dir, args.model, params)
 
 
 if __name__ == "__main__":

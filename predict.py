@@ -1,11 +1,12 @@
 """Predicts effective conductivity with a model trained on the full dataset.
 
-The first run trains the model and caches it under outputs/concrete_thermal/models/;
+The first run trains the model and caches it under outputs/<task>/models/;
 later runs load the cached model.
 
 Usage:
   python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3
   python predict.py --input data/concrete_thermal/blind_validation_data.csv
+  python predict.py --config configs/soil_electrical.yaml --k1 0.1 --k2 1e-6 --v2 0.6
   python predict.py --model rf --k1 ... --k2 ... --v2 ...   # non-default model
 """
 
@@ -16,34 +17,43 @@ import os
 import joblib
 import pandas as pd
 
-from config import DATA_PATH, FEATURES, MODEL_NAMES, OUTPUT_DIR, TARGET
-from main import build_model, resolve_params
+from config import FEATURES, MODEL_NAMES
+from main import add_data_args, build_model, load_config, model_params, resolve_data, resolve_params, task_output_dir
 
 
-def cache_key(name: str) -> dict:
+def cache_key(name: str, data_path: str, params: dict | None = None) -> dict:
     """Get the key for a cached model, including hyperparameters and the data used."""
-    with open(DATA_PATH, "rb") as f:
+    with open(data_path, "rb") as f:
         data_hash = hashlib.sha256(f.read()).hexdigest()
-    return {"params": resolve_params(name), "data_sha256": data_hash}
+    return {"params": resolve_params(name, params), "data_sha256": data_hash}
 
 
-def load_or_train(name: str, retrain: bool, models_dir: str = os.path.join(OUTPUT_DIR, "models")):
+def load_or_train(
+    name: str,
+    data_path: str,
+    target: str,
+    params: dict | None = None,
+    retrain: bool = False,
+    models_dir: str | None = None,
+):
     """Returns the fitted model and each feature's (min, max) training range.
 
     Loads the cached model unless retrain is set, no cache exists, or the
-    hyperparameters or data have changed since it was cached.
+    hyperparameters or data have changed since it was cached. models_dir
+    defaults to outputs/<task>/models.
     """
+    models_dir = models_dir or os.path.join(task_output_dir(data_path), "models")
     path = os.path.join(models_dir, f"{name}.joblib")
-    key = cache_key(name)
+    key = cache_key(name, data_path, params)
     if not retrain and os.path.exists(path):
         payload = joblib.load(path)
         if payload.get("key") == key:
             return payload["model"], payload["feature_ranges"]
         print(f"Cached {name} is out of date (hyperparameters or data changed); retraining")
 
-    df = pd.read_csv(DATA_PATH)
-    model = build_model(name)
-    model.fit(df[FEATURES], df[TARGET])
+    df = pd.read_csv(data_path)
+    model = build_model(name, params)
+    model.fit(df[FEATURES], df[target])
     feature_ranges = {feature: (df[feature].min(), df[feature].max()) for feature in FEATURES}
 
     os.makedirs(models_dir, exist_ok=True)
@@ -77,13 +87,13 @@ def main():
     parser.add_argument("--v2", type=float, help="Volume fraction of phase 2")
     parser.add_argument("--input", help="CSV with K1, K2, V2 columns")
     parser.add_argument(
-        "--output",
-        default=os.path.join(OUTPUT_DIR, "predictions.csv"),
-        help="CSV path to save predictions (default: %(default)s)",
+        "--output", help="CSV path to save predictions (default: outputs/<task>/predictions.csv)"
     )
     parser.add_argument(
         "--retrain", action="store_true", help="Retrain even if a cached model exists"
     )
+    parser.add_argument("--config", help="Task YAML config to read data, target and hyperparameters from")
+    add_data_args(parser)
     args = parser.parse_args()
 
     point = [args.k1, args.k2, args.v2]
@@ -92,7 +102,10 @@ def main():
     if not args.input and any(value is None for value in point):
         parser.error("Provide --k1, --k2 and --v2 together, or --input for batch mode")
 
-    model, feature_ranges = load_or_train(args.model, args.retrain)
+    config = load_config(args.config)
+    data_path, target = resolve_data(args, config)
+    params = model_params(parser, args, config)
+    model, feature_ranges = load_or_train(args.model, data_path, target, params, args.retrain)
 
     if args.input:
         data = pd.read_csv(args.input)
@@ -101,9 +114,10 @@ def main():
             parser.error(f"{args.input} is missing columns: {', '.join(missing)}")
         warn_if_out_of_range(data, feature_ranges)
         data["Keff-Pred"] = model.predict(data[FEATURES])
-        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-        data.to_csv(args.output, index=False)
-        print(f"{len(data)} predictions written to {args.output}")
+        output = args.output or os.path.join(task_output_dir(data_path), "predictions.csv")
+        os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
+        data.to_csv(output, index=False)
+        print(f"{len(data)} predictions written to {output}")
     else:
         X = pd.DataFrame([point], columns=FEATURES)
         warn_if_out_of_range(X, feature_ranges)

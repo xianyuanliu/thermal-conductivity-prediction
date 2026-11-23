@@ -8,7 +8,7 @@ winner here is a winner at extrapolation, not just at interpolation.
   python tune.py --models svr             # one model only
   python tune.py --metric max_rel_err     # rank by worst-case error instead
 
-The full ranking is written to outputs/concrete_thermal/tuning.csv; the best row per model is printed
+The full ranking is written to outputs/<task>/tuning.csv; the best row per model is printed
 ready to paste into config.DEFAULT_PARAMS.
 
 Note on the score: tuning and reporting share the same folds, so the winning
@@ -26,8 +26,8 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.exceptions import ConvergenceWarning
 
-from config import DATA_PATH, FEATURES, METRIC_NAMES, OUTPUT_DIR, TARGET
-from main import build_model, compute_metrics, iter_folds
+from config import FEATURES, METRIC_NAMES
+from main import add_data_args, build_model, compute_metrics, iter_folds, resolve_data, task_output_dir
 
 # Candidate values per hyperparameter; the search is the full cross product.
 # svr's C and epsilon act on the standardized target (see main.build_model).
@@ -112,17 +112,18 @@ def main():
         help="Metric to rank candidates by (default: r2)",
     )
     parser.add_argument(
-        "--output",
-        default=os.path.join(OUTPUT_DIR, "tuning.csv"),
-        help="CSV path to save the ranking (default: %(default)s)",
+        "--output", help="CSV path to save the ranking (default: outputs/<task>/tuning.csv)"
     )
     parser.add_argument(
         "--n-jobs", type=int, default=-1, help="Candidates to score in parallel (default: all cores)"
     )
+    add_data_args(parser)
     args = parser.parse_args()
 
-    df = pd.read_csv(DATA_PATH)
-    X, y = df[FEATURES], df[TARGET]
+    data_path, target = resolve_data(args, {})
+    output = args.output or os.path.join(task_output_dir(data_path), "tuning.csv")
+    df = pd.read_csv(data_path)
+    X, y = df[FEATURES], df[target]
 
     rankings = []
     for name in args.models:
@@ -133,8 +134,8 @@ def main():
         print(f"  best {args.metric}={best[args.metric]:.6g}  {best['params']}\n", flush=True)
 
     ranked = pd.concat(rankings, ignore_index=True)
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-    ranked.to_csv(args.output, index=False)
+    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
+    ranked.to_csv(output, index=False)
 
     best = pd.DataFrame([ranking.iloc[0] for ranking in rankings]).sort_values(
         args.metric, ascending=args.metric not in GREATER_IS_BETTER
@@ -143,7 +144,7 @@ def main():
     print(best[["model", *METRIC_NAMES, "params"]].to_string(index=False, float_format=lambda v: f"{v:.6g}"))
     print()
     print(f"Winner: {best.iloc[0]['model']} with {best.iloc[0]['params']}")
-    print(f"Full ranking written to {args.output}")
+    print(f"Full ranking written to {output}")
 
 
 if __name__ == "__main__":

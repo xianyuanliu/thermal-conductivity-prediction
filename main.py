@@ -98,6 +98,40 @@ def compute_metrics(y_true, y_pred):
     }
 
 
+def load_config(path: str | None) -> dict:
+    """Reads a YAML task config; None gives an empty one."""
+    if not path:
+        return {}
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
+def resolve_data(args, config: dict):
+    """Returns (data path, target column): the command line wins, then the config, then config.py."""
+    return args.data or config.get("data", DATA_PATH), args.target or config.get("target", TARGET)
+
+
+def model_params(parser: argparse.ArgumentParser, args, config: dict) -> dict | None:
+    """Returns args.model's hyperparameter overrides from the config, or None for config.py defaults."""
+    if not args.config:
+        return None
+    models = config.get("models") or {}
+    if args.model not in models:
+        parser.error(f"{args.model} is not listed under models in {args.config}")
+    return models[args.model]
+
+
+def task_output_dir(data_path: str) -> str:
+    """Maps data/<task>/<file>.csv to outputs/<task>, so each dataset writes to its own folder."""
+    return os.path.join("outputs", os.path.basename(os.path.dirname(os.path.abspath(data_path))))
+
+
+def add_data_args(parser: argparse.ArgumentParser):
+    """Adds --data and --target, which override the config and config.py defaults."""
+    parser.add_argument("--data", help=f"Training data CSV (default: from --config, else {DATA_PATH})")
+    parser.add_argument("--target", help=f"Target column (default: from --config, else {TARGET})")
+
+
 def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     """Saves rows into a CSV: drops rows matching the new key, then appends."""
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -210,16 +244,14 @@ def run_cv(
         print(f"Fold metrics saved to {folds_file}, summary to {output_path}")
 
 
-def run_config(config_path: str, X: pd.DataFrame, y: pd.Series):
-    """Runs every model listed in a YAML config under one evaluation mode.
+def run_config(config: dict, X: pd.DataFrame, y: pd.Series):
+    """Runs every model listed in a task config under one evaluation mode.
 
-    The config keys are: 'evaluation' (single/random/v2, default single),
-    'output' (optional CSV path), and 'models' (a map of model name to a dict
-    of hyperparameter overrides. {} keeps the defaults).
+    The config keys are: 'data' and 'target' (read by main), 'evaluation'
+    (single/random/v2, default single), 'output' (optional CSV path), and
+    'models' (a map of model name to a dict of hyperparameter overrides. {}
+    keeps the defaults).
     """
-    with open(config_path) as f:
-        config = yaml.safe_load(f) or {}
-
     evaluation = config.get("evaluation", "single")
     if evaluation not in EVALUATIONS:
         raise ValueError(f"evaluation must be one of {EVALUATIONS}, got {evaluation!r}")
@@ -260,14 +292,17 @@ def main():
     parser.add_argument(
         "--output", help="CSV path to save results. If omitted, results are not saved"
     )
+    add_data_args(parser)
     args = parser.parse_args()
 
-    df = pd.read_csv(DATA_PATH)
+    config = load_config(args.config)
+    data_path, target = resolve_data(args, config)
+    df = pd.read_csv(data_path)
     X = df[FEATURES]
-    y = df[TARGET]
+    y = df[target]
 
     if args.config:
-        run_config(args.config, X, y)
+        run_config(config, X, y)
     elif args.cv:
         run_cv(args.model, args.cv, X, y, output_path=args.output)
     else:

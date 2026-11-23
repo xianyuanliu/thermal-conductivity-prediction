@@ -2,7 +2,8 @@
 
 Reads a CV summary CSV written by main.py (e.g. results_random.csv) and draws
 one bar chart per metric, with each model's mean as the bar and its std as the
-error bar. Figures are written to outputs/concrete_thermal/figures/ unless --output is given.
+error bar. Figures are written to a figures/ folder next to the input CSV
+unless --output is given.
 
 Usage:
   python print.py                              # plots outputs/concrete_thermal/results_v2.csv
@@ -18,7 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import METRIC_NAMES, N_FOLDS, OUTPUT_DIR
+from config import METRIC_NAMES, N_FOLDS
 
 METRIC_LABELS = {
     "r2": "$R^2$",
@@ -36,7 +37,7 @@ CV_LABELS = {
 def plot_cv_results(
     df: pd.DataFrame,
     stem: str,
-    output_dir: str = os.path.join(OUTPUT_DIR, "figures"),
+    output_dir: str,
     metric_labels: dict = METRIC_LABELS,
     cv_labels: dict = CV_LABELS,
 ):
@@ -63,19 +64,15 @@ def main():
     parser = argparse.ArgumentParser(description="Plot CV results, one figure per metric")
     parser.add_argument(
         "--input",
-        default=os.path.join(OUTPUT_DIR, "results_v2.csv"),
+        default="outputs/concrete_thermal/results_v2.csv",
         help="CV summary CSV to plot (default: %(default)s)",
     )
-    parser.add_argument(
-        "--output",
-        default=os.path.join(OUTPUT_DIR, "figures"),
-        help="Directory to save figures (default: %(default)s)",
-    )
+    parser.add_argument("--output", help="Directory to save figures (default: figures/ next to --input)")
     args = parser.parse_args()
 
     df = pd.read_csv(args.input)
     stem = os.path.splitext(os.path.basename(args.input))[0]
-    plot_cv_results(df, stem, args.output)
+    plot_cv_results(df, stem, args.output or os.path.join(os.path.dirname(args.input), "figures"))
 
 
 if __name__ == "__main__":
