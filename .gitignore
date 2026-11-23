@@ -48,6 +48,5 @@ blind_predictions.csv
 .DS_Store
 Thumbs.db
 
-# Data (hosted on Zenodo)
-thermal_conductivity_data.csv
-blind_validation_data.csv
+# Data (concrete_thermal is hosted on Zenodo)
+data/*/*.csv

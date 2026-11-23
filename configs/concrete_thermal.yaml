@@ -2,7 +2,7 @@
 evaluation: random
 
 # Metrics CSV. Omit to skip saving. random and v2 also write per-fold metrics to results_random_folds.csv.
-output: results_random.csv
+output: outputs/concrete_thermal/results_random.csv
 
 # Models to run, with hyperparameters overriding config.DEFAULT_PARAMS. {} keeps the defaults.
 models:

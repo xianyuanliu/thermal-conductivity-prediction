@@ -8,7 +8,7 @@ winner here is a winner at extrapolation, not just at interpolation.
   python tune.py --models svr             # one model only
   python tune.py --metric max_rel_err     # rank by worst-case error instead
 
-The full ranking is written to tuning.csv; the best row per model is printed
+The full ranking is written to outputs/concrete_thermal/tuning.csv; the best row per model is printed
 ready to paste into config.DEFAULT_PARAMS.
 
 Note on the score: tuning and reporting share the same folds, so the winning
@@ -19,13 +19,14 @@ ranking, not as an unbiased estimate of error on new points.
 import argparse
 import itertools
 import math
+import os
 import warnings
 
 import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.exceptions import ConvergenceWarning
 
-from config import DATA_PATH, FEATURES, METRIC_NAMES, TARGET
+from config import DATA_PATH, FEATURES, METRIC_NAMES, OUTPUT_DIR, TARGET
 from main import build_model, compute_metrics, iter_folds
 
 # Candidate values per hyperparameter; the search is the full cross product.
@@ -111,7 +112,9 @@ def main():
         help="Metric to rank candidates by (default: r2)",
     )
     parser.add_argument(
-        "--output", default="tuning.csv", help="CSV path to save the ranking (default: tuning.csv)"
+        "--output",
+        default=os.path.join(OUTPUT_DIR, "tuning.csv"),
+        help="CSV path to save the ranking (default: %(default)s)",
     )
     parser.add_argument(
         "--n-jobs", type=int, default=-1, help="Candidates to score in parallel (default: all cores)"
@@ -130,6 +133,7 @@ def main():
         print(f"  best {args.metric}={best[args.metric]:.6g}  {best['params']}\n", flush=True)
 
     ranked = pd.concat(rankings, ignore_index=True)
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     ranked.to_csv(args.output, index=False)
 
     best = pd.DataFrame([ranking.iloc[0] for ranking in rankings]).sort_values(

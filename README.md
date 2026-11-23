@@ -2,9 +2,14 @@
 
 Machine learning surrogate models predicting the effective conductivity `Keff` of a two-phase composite from the conductivities of the two phases (`K1`, `K2`) and the volume fraction of phase 2 (`V2`).
 
+Each task keeps its data in `data/<task>/`, its config in `configs/<task>.yaml` and its outputs (metrics, figures, cached models, predictions) in `outputs/<task>/`:
+
+- `concrete_thermal`: thermal conductivity of concrete.
+- `soil_electrical`: electrical conductivity of soil mixtures.
+
 ## Data
 
-The dataset is hosted on Zenodo: [10.5281/zenodo.23325199](https://doi.org/10.5281/zenodo.23325199). Download both files into the repository root:
+The `concrete_thermal` dataset is hosted on Zenodo: [10.5281/zenodo.23325199](https://doi.org/10.5281/zenodo.23325199). Download both files into `data/concrete_thermal/`:
 
 - `thermal_conductivity_data.csv`: numerical simulation data (`K1`, `K2`, `V2`, `Keff-Num`) on a full 21 x 21 x 10 grid (4410 samples).
 - `blind_validation_data.csv`: held-out data (`K1`, `K2`, `V2`) for blind prediction (40 samples).
@@ -20,13 +25,15 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python tune.py                                    # hyperparameter search (defaults in config.py already tuned)
-python main.py --model svr --cv v2                # evaluate one model (leave-one-V2-out CV)
-python main.py --config configs/baseline.yaml     # evaluate several models from a config
-python print.py --input results_random.csv        # bar charts of CV results in figures/
-python shap_analysis.py                           # SHAP plots in figures/
-python predict.py --input blind_validation_data.csv --output predictions.csv   # predict Keff
+python tune.py                                                              # hyperparameter search (defaults in config.py already tuned)
+python main.py --model svr --cv v2                                          # evaluate one model (leave-one-V2-out CV)
+python main.py --config configs/concrete_thermal.yaml                       # evaluate several models from a config
+python print.py --input outputs/concrete_thermal/results_random.csv         # bar charts of CV results
+python shap_analysis.py                                                     # SHAP plots
+python predict.py --input data/concrete_thermal/blind_validation_data.csv   # predict Keff
 ```
+
+Outputs go to `outputs/concrete_thermal/` by default; pass `--output` to write elsewhere.
 
 Three evaluation modes are available:
 

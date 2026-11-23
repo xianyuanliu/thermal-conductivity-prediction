@@ -9,7 +9,7 @@ MAE, MAPE and max relative error. Run one model from the command line:
 
 or run several models at once using a YAML config file:
 
-  python main.py --config configs/baseline.yaml
+  python main.py --config configs/concrete_thermal.yaml
 """
 
 import argparse
@@ -100,6 +100,7 @@ def compute_metrics(y_true, y_pred):
 
 def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     """Saves rows into a CSV: drops rows matching the new key, then appends."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     if os.path.exists(path):
         results = pd.read_csv(path)
         key = [new_rows.iloc[0][col] for col in key_cols]

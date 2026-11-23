@@ -2,7 +2,7 @@
 
 With three features, Kernel SHAP enumerates all 2^3 coalitions, so the
 Shapley values are exact. Prints the importance ranking and writes summary
-and dependence plots to figures/ unless --output is given.
+and dependence plots to outputs/concrete_thermal/figures/ unless --output is given.
 """
 
 import argparse
@@ -17,7 +17,7 @@ import pandas as pd
 import shap
 from sklearn.model_selection import train_test_split
 
-from config import DATA_PATH, FEATURES, MODEL_NAMES, RANDOM_STATE, TARGET, TEST_SIZE
+from config import DATA_PATH, FEATURES, MODEL_NAMES, OUTPUT_DIR, RANDOM_STATE, TARGET, TEST_SIZE
 from main import build_model
 
 N_BACKGROUND = 50  # K-means summary of the training set used as SHAP baseline.
@@ -28,7 +28,7 @@ def run_shap(
     y: pd.Series,
     model_name: str = "svr",
     n_background: int = N_BACKGROUND,
-    output_dir: str = "figures",
+    output_dir: str = os.path.join(OUTPUT_DIR, "figures"),
 ):
     """Explains one model with Kernel SHAP, saves the plots and returns mean |SHAP| per feature."""
     # Same fixed split as main.py, so the explained model is the reported one.
@@ -82,7 +82,11 @@ def main():
     parser.add_argument(
         "--model", default="svr", choices=MODEL_NAMES, help="Model to explain (default: svr)"
     )
-    parser.add_argument("--output", default="figures", help="Directory to save figures (default: figures)")
+    parser.add_argument(
+        "--output",
+        default=os.path.join(OUTPUT_DIR, "figures"),
+        help="Directory to save figures (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     df = pd.read_csv(DATA_PATH)

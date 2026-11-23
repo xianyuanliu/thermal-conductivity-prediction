@@ -1,6 +1,7 @@
 """Default configuration: data paths, constants and per-model hyperparameters."""
 
-DATA_PATH = "thermal_conductivity_data.csv"
+DATA_PATH = "data/concrete_thermal/thermal_conductivity_data.csv"
+OUTPUT_DIR = "outputs/concrete_thermal"
 FEATURES = ["K1", "K2", "V2"]
 TARGET = "Keff-Num"
 

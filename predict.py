@@ -1,10 +1,11 @@
 """Predicts effective conductivity with a model trained on the full dataset.
 
-The first run trains the model and caches it under models/. The later runs load the cached model.
+The first run trains the model and caches it under outputs/concrete_thermal/models/;
+later runs load the cached model.
 
 Usage:
   python predict.py --k1 0.0018 --k2 0.0012 --v2 0.3
-  python predict.py --input blind_validation_data.csv --output predictions.csv
+  python predict.py --input data/concrete_thermal/blind_validation_data.csv
   python predict.py --model rf --k1 ... --k2 ... --v2 ...   # non-default model
 """
 
@@ -15,7 +16,7 @@ import os
 import joblib
 import pandas as pd
 
-from config import DATA_PATH, FEATURES, MODEL_NAMES, TARGET
+from config import DATA_PATH, FEATURES, MODEL_NAMES, OUTPUT_DIR, TARGET
 from main import build_model, resolve_params
 
 
@@ -26,7 +27,7 @@ def cache_key(name: str) -> dict:
     return {"params": resolve_params(name), "data_sha256": data_hash}
 
 
-def load_or_train(name: str, retrain: bool, models_dir: str = "models"):
+def load_or_train(name: str, retrain: bool, models_dir: str = os.path.join(OUTPUT_DIR, "models")):
     """Returns the fitted model and each feature's (min, max) training range.
 
     Loads the cached model unless retrain is set, no cache exists, or the
@@ -77,8 +78,8 @@ def main():
     parser.add_argument("--input", help="CSV with K1, K2, V2 columns")
     parser.add_argument(
         "--output",
-        default="predictions.csv",
-        help="CSV path to save predictions (default: predictions.csv)",
+        default=os.path.join(OUTPUT_DIR, "predictions.csv"),
+        help="CSV path to save predictions (default: %(default)s)",
     )
     parser.add_argument(
         "--retrain", action="store_true", help="Retrain even if a cached model exists"
@@ -100,6 +101,7 @@ def main():
             parser.error(f"{args.input} is missing columns: {', '.join(missing)}")
         warn_if_out_of_range(data, feature_ranges)
         data["Keff-Pred"] = model.predict(data[FEATURES])
+        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
         data.to_csv(args.output, index=False)
         print(f"{len(data)} predictions written to {args.output}")
     else:
