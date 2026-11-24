@@ -13,13 +13,17 @@ or run several models at once using a YAML config file:
 """
 
 import argparse
+import itertools
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
 import yaml
+from joblib import Parallel, delayed
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.metrics import (
     mean_absolute_error,
@@ -43,6 +47,8 @@ from config import (
     MODEL_NAMES,
     N_FOLDS,
     RANDOM_STATE,
+    SEARCH_ONLY_PARAMS,
+    SEARCH_SPACES,
     TARGET,
     TEST_SIZE,
 )
@@ -145,10 +151,10 @@ def save_results(path: str, new_rows: pd.DataFrame, key_cols: list):
     results.to_csv(path, index=False)
 
 
-def folds_path(output_path: str):
-    """Derives the per-fold CSV path from the summary path: foo.csv -> foo_folds.csv."""
-    root, ext = os.path.splitext(output_path)
-    return f"{root}_folds{ext}"
+def add_suffix(path: str, suffix: str) -> str:
+    """Inserts a suffix before the extension: foo.csv -> foo_<suffix>.csv."""
+    root, ext = os.path.splitext(path)
+    return f"{root}_{suffix}{ext}"
 
 
 def iter_folds(X: pd.DataFrame, cv: str):
@@ -169,17 +175,58 @@ def iter_folds(X: pd.DataFrame, cv: str):
             yield fold, value, np.flatnonzero(~test_mask), np.flatnonzero(test_mask)
 
 
+def candidates(space: dict):
+    """Yields every combination in a search space as a params dict."""
+    keys = list(space)
+    for values in itertools.product(*(space[key] for key in keys)):
+        yield dict(zip(keys, values))
+
+
+def val_score(name: str, params: dict, X_fit, y_fit, X_val, y_val) -> float:
+    """Returns the validation R^2 of one candidate fitted on (X_fit, y_fit)."""
+    # Silence MLP max_iter warnings; set here because workers don't inherit filters.
+    warnings.filterwarnings("ignore", category=ConvergenceWarning)
+    model = build_model(name, {**params, **SEARCH_ONLY_PARAMS.get(name, {})})
+    model.fit(X_fit, y_fit)
+    return r2_score(y_val, model.predict(X_val))
+
+
+def select_params(name: str, X: pd.DataFrame, y: pd.Series, cv: str, params: dict | None = None):
+    """Returns the SEARCH_SPACES[name] candidate with the best validation R^2, chosen from (X, y) alone.
+
+    The validation set is carved out of (X, y): one randomly chosen V2 value for
+    "v2", a random TEST_SIZE share otherwise. Callers pass training data only, so
+    the test data never influences the choice. Models without a search space keep params.
+    """
+    if name not in SEARCH_SPACES:
+        return params
+    if cv == "v2":
+        v2 = X["V2"].to_numpy()
+        val_mask = v2 == np.random.default_rng(RANDOM_STATE).choice(np.unique(v2))
+    else:
+        val_mask = np.zeros(len(X), dtype=bool)
+        val_mask[train_test_split(np.arange(len(X)), test_size=TEST_SIZE, random_state=RANDOM_STATE)[1]] = True
+    trials = [{**(params or {}), **candidate} for candidate in candidates(SEARCH_SPACES[name])]
+    scores = Parallel(n_jobs=-1)(
+        delayed(val_score)(name, trial, X[~val_mask], y[~val_mask], X[val_mask], y[val_mask]) for trial in trials
+    )
+    return trials[int(np.argmax(scores))]
+
+
 def run_single_split(
     model_name: str,
     X: pd.DataFrame,
     y: pd.Series,
     output_path: str | None = None,
     params: dict | None = None,
+    tune: bool = False,
 ):
-    """Trains on the fixed 80/20 split."""
+    """Trains on the fixed 80/20 split; tune selects hyperparameters on the training part only."""
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
+    if tune:
+        params = select_params(model_name, X_train, y_train, "random", params)
 
     model = build_model(model_name, params)
     model.fit(X_train, y_train)
@@ -192,7 +239,7 @@ def run_single_split(
         **{f"test_{name}": value for name, value in test_metrics.items()},
     }
 
-    print(f"Model: {model_name}")
+    print(f"Model: {model_name}" + (f" | tuned: {params}" if tune else ""))
     print(f"Train R^2 : {metrics['train_r2']:.6f}")
     print(f"Test  R^2 : {metrics['test_r2']:.6f}")
     print(f"Test  RMSE: {metrics['test_rmse']:.6g}")
@@ -201,7 +248,9 @@ def run_single_split(
     print(f"Test  max rel err: {metrics['test_max_rel_err']:.4%}")
 
     if output_path:
-        save_results(output_path, pd.DataFrame([metrics]), ["model", "params"])
+        # Tuned runs go to their own file so they never replace untuned rows.
+        output_path = add_suffix(output_path, "tuned") if tune else output_path
+        save_results(output_path, pd.DataFrame([metrics]), ["model"] if tune else ["model", "params"])
         print(f"Metrics saved to {output_path}")
 
 
@@ -212,22 +261,29 @@ def run_cv(
     y: pd.Series,
     output_path: str | None = None,
     params: dict | None = None,
+    tune: bool = False,
 ):
-    """Runs CV and reports per-fold metrics plus their mean and std."""
-    params_repr = str(resolve_params(model_name, params))
+    """Runs CV and reports per-fold metrics plus their mean and std.
+
+    tune selects hyperparameters inside each fold from its training part only.
+    """
+    params_repr = "tuned" if tune else str(resolve_params(model_name, params))
     rows = []
     for fold, v2_value, train_idx, test_idx in iter_folds(X, cv):
-        model = build_model(model_name, params)
-        model.fit(X.iloc[train_idx], y.iloc[train_idx])
+        X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
+        fold_params = select_params(model_name, X_train, y_train, cv, params) if tune else params
+        model = build_model(model_name, fold_params)
+        model.fit(X_train, y_train)
         fold_metrics = compute_metrics(y.iloc[test_idx], model.predict(X.iloc[test_idx]))
+        fold_repr = str(resolve_params(model_name, fold_params)) if tune else params_repr
         rows.append(
-            {"model": model_name, "params": params_repr, "cv": cv, "fold": fold, "v2_value": v2_value}
+            {"model": model_name, "params": fold_repr, "cv": cv, "fold": fold, "v2_value": v2_value}
             | fold_metrics
         )
     folds = pd.DataFrame(rows)
 
-    print(f"Model: {model_name} | CV: {cv} ({N_FOLDS} folds)")
-    shown = (["fold", "v2_value"] if cv == "v2" else ["fold"]) + METRIC_NAMES
+    print(f"Model: {model_name} | CV: {cv} ({N_FOLDS} folds)" + (" | tuned per fold" if tune else ""))
+    shown = (["fold", "v2_value"] if cv == "v2" else ["fold"]) + METRIC_NAMES + (["params"] if tune else [])
     print(folds[shown].to_string(index=False, float_format=lambda v: f"{v:.6g}"))
 
     summary = {"model": model_name, "params": params_repr, "cv": cv}
@@ -238,13 +294,15 @@ def run_cv(
         print(f"  {name:12s}: {summary[f'{name}_mean']:.6g} +/- {summary[f'{name}_std']:.6g}")
 
     if output_path:
-        folds_file = folds_path(output_path)
-        save_results(folds_file, folds, ["model", "params", "cv"])
-        save_results(output_path, pd.DataFrame([summary]), ["model", "params", "cv"])
+        output_path = add_suffix(output_path, "tuned") if tune else output_path
+        folds_file = add_suffix(output_path, "folds")
+        key_cols = ["model", "cv"] if tune else ["model", "params", "cv"]
+        save_results(folds_file, folds, key_cols)
+        save_results(output_path, pd.DataFrame([summary]), key_cols)
         print(f"Fold metrics saved to {folds_file}, summary to {output_path}")
 
 
-def run_config(config: dict, X: pd.DataFrame, y: pd.Series):
+def run_config(config: dict, X: pd.DataFrame, y: pd.Series, tune: bool = False):
     """Runs every model listed in a task config under one evaluation mode.
 
     The config keys are: 'data' and 'target' (read by main), 'evaluation'
@@ -266,9 +324,9 @@ def run_config(config: dict, X: pd.DataFrame, y: pd.Series):
 
     for name, params in models.items():
         if evaluation == "single":
-            run_single_split(name, X, y, output_path=output_path, params=params)
+            run_single_split(name, X, y, output_path=output_path, params=params, tune=tune)
         else:
-            run_cv(name, evaluation, X, y, output_path=output_path, params=params)
+            run_cv(name, evaluation, X, y, output_path=output_path, params=params, tune=tune)
         print()
 
 
@@ -292,6 +350,11 @@ def main():
     parser.add_argument(
         "--output", help="CSV path to save results. If omitted, results are not saved"
     )
+    parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Select svr/mlp/rf hyperparameters inside each fold from training data only; saves to *_tuned.csv",
+    )
     add_data_args(parser)
     args = parser.parse_args()
 
@@ -302,11 +365,11 @@ def main():
     y = df[target]
 
     if args.config:
-        run_config(config, X, y)
+        run_config(config, X, y, args.tune)
     elif args.cv:
-        run_cv(args.model, args.cv, X, y, output_path=args.output)
+        run_cv(args.model, args.cv, X, y, output_path=args.output, tune=args.tune)
     else:
-        run_single_split(args.model, X, y, output_path=args.output)
+        run_single_split(args.model, X, y, output_path=args.output, tune=args.tune)
 
 
 if __name__ == "__main__":

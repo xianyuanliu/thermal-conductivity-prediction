@@ -13,11 +13,11 @@ ready to paste into config.DEFAULT_PARAMS.
 
 Note on the score: tuning and reporting share the same folds, so the winning
 score is optimistic (the search saw every fold it is graded on). Treat it as a
-ranking, not as an unbiased estimate of error on new points.
+ranking, not as an unbiased estimate of error on new points; main.py --tune
+gives that estimate by tuning inside each fold on training data only.
 """
 
 import argparse
-import itertools
 import math
 import os
 import warnings
@@ -26,43 +26,8 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.exceptions import ConvergenceWarning
 
-from config import FEATURES, METRIC_NAMES
-from main import add_data_args, build_model, compute_metrics, iter_folds, resolve_data, task_output_dir
-
-# Candidate values per hyperparameter; the search is the full cross product.
-# svr's C and epsilon act on the standardized target (see main.build_model).
-SEARCH_SPACES = {
-    "svr": {
-        "C": [1.0, 10.0, 100.0, 1000.0],
-        "epsilon": [0.001, 0.005, 0.01, 0.05],
-        "gamma": ["scale", 0.1, 0.3, 1.0, 3.0],
-    },
-    "mlp": {
-        "hidden_layer_sizes": [(64, 64), (128, 128), (64, 64, 64), (256,)],
-        "alpha": [1e-5, 1e-4, 1e-3],
-        "learning_rate_init": [1e-3, 3e-3],
-    },
-    "rf": {
-        "n_estimators": [300, 600],
-        "max_depth": [None, 10, 20],
-        "min_samples_leaf": [1, 2, 4],
-        "max_features": [1.0, "sqrt"],
-    },
-}
-
-GREATER_IS_BETTER = {"r2"}
-
-# rf parallelizes internally (n_jobs=-1 in config.py); during the search the
-# outer loop over candidates owns the cores. Applied to the fit only, so it is
-# not part of the candidate params.
-SEARCH_ONLY_PARAMS = {"rf": {"n_jobs": 1}}
-
-
-def candidates(space: dict):
-    """Yields every combination in a search space as a params dict."""
-    keys = list(space)
-    for values in itertools.product(*(space[key] for key in keys)):
-        yield dict(zip(keys, values))
+from config import FEATURES, GREATER_IS_BETTER, METRIC_NAMES, SEARCH_ONLY_PARAMS, SEARCH_SPACES
+from main import add_data_args, build_model, candidates, compute_metrics, iter_folds, resolve_data, task_output_dir
 
 
 def score_candidate(name: str, params: dict, X: pd.DataFrame, y: pd.Series, folds: list):

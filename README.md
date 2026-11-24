@@ -52,6 +52,8 @@ Three evaluation modes are available:
 - `random`: 10-fold cross-validation (CV) with shuffled folds.
 - `v2`: leave-one-V2-out CV. Each fold holds out all samples at one V2 value, so the model is tested on volume fractions it has not seen during training.
 
+By default every fold uses the hyperparameters in `config.py`, which `tune.py` selected on the full dataset. Add `--tune` to `main.py` to select `svr`, `mlp` and `rf` hyperparameters inside each fold from its training part only: a validation set is held out from the training part (one random V2 value for `v2`, a random 20% otherwise), the best candidate on it is refitted on the whole training part, and the test part is used once. Tuned results are saved next to the untuned ones with a `_tuned` suffix.
+
 Models: linear regression (`linear`), ridge regression (`ridge`), lasso regression (`lasso`), support vector regression (`svr`), random forest (`rf`), XGBoost (`xgb`), multi-layer perceptron (`mlp`). See [config.py](config.py) for details.
 
 ## Citation
